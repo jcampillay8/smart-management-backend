@@ -1,0 +1,83 @@
+name: easymanagement_dev
+
+services:
+  api: # Cambiado de 'web' a 'api'
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easy-backend
+    tty: true
+    stdin_open: true
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      # Si el archivo no existe aún, Docker podría quejarse al montar el volumen
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/google_credentials.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./profiles:/app/profiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - easy-net
+    command: >
+      sh -c "alembic upgrade head || echo 'No se pudieron aplicar migraciones, iniciando...' &&
+             uvicorn src.main:app --host=0.0.0.0 --port=8000 --proxy-headers --reload --log-level debug"
+
+  db: # Cambiado de 'chat-postgres' a 'db'
+    image: postgres:15-alpine
+    container_name: easy-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-jcampillay}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-BTC.100K.jc}
+      POSTGRES_DB: ${DB_NAME:-EasyManagement}
+    ports:
+      - "5443:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    networks:
+      - easy-net
+
+  redis: # Cambiado de 'chat-redis' a 'redis'
+    image: redis:alpine
+    container_name: easy-redis
+    restart: always
+    ports:
+      - "6380:6379"
+    networks:
+      - easy-net
+    command: redis-server --requirepass ${REDIS_PASSWORD:-easy_secret_pass}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-easy_secret_pass}
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: easy-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "7071:80"
+    networks:
+      - easy-net
+    depends_on:
+      - db
+
+networks:
+  easy-net: # Red propia del proyecto
+
+volumes:
+  postgres_data:

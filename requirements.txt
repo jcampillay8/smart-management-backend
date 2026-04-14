@@ -1,0 +1,44 @@
+# Core FastAPI
+fastapi>=0.103.1
+uvicorn>=0.23.2
+websockets>=11.0.3
+asgi-lifespan>=2.1.0
+gunicorn>=21.2.0
+uvloop==0.19.0
+httptools==0.6.1
+
+# Database
+alembic>=1.12.0
+sqlalchemy>=2.0.20
+asyncpg>=0.28.0
+redis<5.0.0
+sqladmin>=0.16.0
+psycopg2-binary~=2.9
+
+# Auth
+pydantic[email]>=2.3.0
+pydantic-settings>=2.0.3
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.1.0
+pyjwt>=2.8.0
+itsdangerous>=2.1.2
+authlib[starlette]>=1.2.0,<2.0.0
+python-multipart>=0.0.6
+
+# AI & Mail
+openai>=1.0.0
+google-generativeai>=0.5.0
+resend==2.13.1
+fastapi-mail[smtplib]>=1.5.0,<2.0.0
+
+# Utils & Fixes
+fastapi-pagination>=0.12.9
+fastapi-limiter==0.1.6  <-- HE FIJADO ESTA VERSIÓN PARA EL ERROR
+fastapi-admin>=1.0.4
+httpx>=0.25.0
+loguru>=0.7.3
+pyhumps>=2.0.0
+aiofiles>=23.2.1
+sentry-sdk[asyncpg,fastapi]>=1.39.1
+Pillow==10.1.0
+pytz>=2024.1

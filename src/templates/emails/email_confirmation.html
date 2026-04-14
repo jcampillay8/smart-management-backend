@@ -1,0 +1,16 @@
+ <!-- src/templates/emails/email_confirmation.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confirma tu Cuenta</title>
+</head>
+<body>
+    <p>Hola {{ user_name }},</p>
+    <p>Gracias por registrarte en OppyChat. Para activar tu cuenta, por favor haz clic en el siguiente enlace:</p>
+    <p><a href="{{ confirmation_url }}">Confirmar mi cuenta</a></p>
+    <p>Si no te registraste en OppyChat, puedes ignorar este correo electrónico.</p>
+    <p>Gracias,</p>
+    <p>El equipo de {{ app_name }}</p>
+    <p>Este enlace es válido por {{ expiration_minutes }} minutos.</p>
+</body>
+</html>

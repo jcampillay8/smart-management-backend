@@ -1,0 +1,33 @@
+# Carpetas de entorno y compilación
+venv/
+env/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Control de versiones y herramientas
+.git/
+.gitignore
+.idea/
+.vscode/
+.mypy_cache/
+.pytest_cache/
+.cache/
+.coverage
+coverage.xml
+
+# Archivos de ejecución u orígenes no necesarios
+celerybeat.pid
+celerybeat-schedule
+.DS_Store
+
+# Base de datos local, si existiera
+*.sqlite3
+
+# Archivos de configuración opcionalmente ignorables
+.env
+.env.*

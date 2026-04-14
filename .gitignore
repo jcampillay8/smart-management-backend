@@ -1,0 +1,46 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Environment variables & Secrets (CRÍTICO)
+.env
+.env.*
+!.env.example  # Permite subir un archivo de ejemplo sin datos reales
+google_credentials.json
+*.pem
+*.key
+
+# Database files
+*.db
+*.sqlite3
+/data/
+
+# Alembic
+# No ignorar alembic.ini ni la carpeta versions
+# Pero sí archivos temporales si los hubiera
+
+# Docker
+.docker/
+*.clover
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+notas.md  # Ignora tus notas privadas si no quieres que estén en GitHub
+
+# Profiling
+profiles/
+flamegraph.svg
