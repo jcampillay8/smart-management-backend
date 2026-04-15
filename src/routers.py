@@ -5,6 +5,7 @@ from src.authentication.user_details_router import user_details_router
 from src.registration.router import account_router
 from src.inventory.router import inventory_router
 from src.operations.router import operations_router
+from src.sales.router import sales_router
 
 routers = [
     auth_router,
@@ -12,5 +13,6 @@ routers = [
     user_details_router,
     account_router,
     inventory_router,
-    operations_router
+    operations_router,
+    sales_router
 ]

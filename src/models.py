@@ -61,7 +61,7 @@ class User(BaseModel):
     email: Mapped[str] = mapped_column(String(254), unique=True)
     password: Mapped[str] = mapped_column(String(128))
     
-    # Onboarding Oppy2
+    # Onboarding
     first_name: Mapped[str] = mapped_column(String(150), default="")
     last_name: Mapped[str] = mapped_column(String(150), default="")
     occupation: Mapped[str] = mapped_column(String(150), nullable=True)

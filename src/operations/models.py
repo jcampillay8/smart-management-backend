@@ -48,3 +48,24 @@ class Evento(BaseModel):
     ejecutado: Mapped[bool] = mapped_column(Boolean, default=False)
     cancelado: Mapped[bool] = mapped_column(Boolean, default=False)
     usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id"))
+    valor_publico: Mapped[Optional[float]] = mapped_column(Numeric(10, 2)) # Lo vimos en la Parte 3
+
+    # Relación con los productos específicos del evento
+    productos: Mapped[List["EventoProducto"]] = relationship(back_populates="evento", cascade="all, delete-orphan")
+
+class EventoProducto(BaseModel):
+    __tablename__ = "evento_productos"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.eventos.id", ondelete="CASCADE"))
+    producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.productos.id"))
+    bodega_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id"))
+    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+
+    # Relaciones
+    evento: Mapped["Evento"] = relationship(back_populates="productos")
+    
+    # IMPORTANTE: Asegúrate de importar Bodega de src.inventory.models
+    producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
+    bodega: Mapped["Bodega"] = relationship("src.inventory.models.Bodega") # <--- AGREGAR ESTO
