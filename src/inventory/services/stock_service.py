@@ -6,7 +6,8 @@ from uuid import UUID
 from datetime import datetime, date
 from typing import List, Optional
 
-from src.models import RegistroStock, ProductoBodega, Evento, EventoProducto
+from src.operations.models import RegistroStock, Evento, EventoProducto
+from src.inventory.models import ProductoBodega
 from src.inventory.schemas import RegistroStockCreate
 
 class StockService:

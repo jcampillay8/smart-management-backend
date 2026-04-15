@@ -1,7 +1,7 @@
 # src/operations/models.py
 import uuid
 import enum
-from typing import Optional # <--- IMPORTANTE
+from typing import List, Optional
 from datetime import datetime, date
 from sqlalchemy import String, ForeignKey, Numeric, DateTime, Date, Enum, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship

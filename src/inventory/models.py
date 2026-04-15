@@ -50,6 +50,7 @@ class ProductoBodega(BaseModel):
     producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.productos.id", ondelete="CASCADE"))
     bodega_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id", ondelete="CASCADE"))
     stock_minimo: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
+    stock_actual: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
 
     producto: Mapped["Producto"] = relationship(back_populates="bodegas_config")
     bodega: Mapped["Bodega"] = relationship(back_populates="productos_config")
