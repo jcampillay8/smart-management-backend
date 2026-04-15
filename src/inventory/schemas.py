@@ -35,6 +35,7 @@ class ProductoBodegaBase(BaseModel):
 
 class ProductoBodegaOut(ProductoBodegaBase):
     id: UUID
+    stock_actual: float = 0.0
     model_config = ConfigDict(from_attributes=True)
 
 # --- Productos ---
@@ -54,4 +55,23 @@ class ProductoOut(ProductoBase):
     # Incluimos la configuración de bodegas para que el front sepa los stocks mínimos
     bodegas_config: List[ProductoBodegaOut] = []
     
+    model_config = ConfigDict(from_attributes=True)
+
+class RegistroStockCreate(BaseModel):
+    producto_id: UUID
+    bodega_id: UUID
+    cantidad: float = Field(..., gt=0)
+    fecha_recuento: Optional[date] = None
+    fecha_vencimiento: Optional[date] = None
+    descripcion_merma: Optional[str] = None
+
+class RegistroStockOut(BaseModel):
+    id: UUID
+    producto_id: UUID
+    cantidad: float
+    tipo_movimiento: str
+    fecha_recuento: date
+    fecha_vencimiento: Optional[date]
+    created_at: datetime
+    # Podrías añadir campos extra mediante joins en el router (nombre_producto, etc.)
     model_config = ConfigDict(from_attributes=True)
