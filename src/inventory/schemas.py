@@ -94,6 +94,12 @@ class RegistroStockOut(BaseModel):
     created_at: datetime
     usuario_id: int
     motivo_merma: Optional[str] = None
+    descripcion_merma: Optional[str] = None # Añadido para transferencias/mermas
+    
+    # --- CAMPOS CALCULADOS PARA EL FRONTEND ---
+    nombre_producto: Optional[str] = None
+    nombre_bodega: Optional[str] = None
+    user_display_name: Optional[str] = None 
     
     model_config = ConfigDict(from_attributes=True)
 
