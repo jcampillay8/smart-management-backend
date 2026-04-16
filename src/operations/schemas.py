@@ -47,7 +47,9 @@ class RegistroStockBase(BaseModel):
     fecha_recuento: date = Field(default_factory=date.today)
     fecha_vencimiento: Optional[date] = None
     
-    motivo_merma: Optional[str] = None
+    # Asegúrate de que estos coincidan con lo que envía el .tsx
+    # El front envía: "vencimiento", "daño", "error", "otro"
+    motivo_merma: Optional[str] = Field(None, pattern="^(vencimiento|daño|error|otro)$")
     descripcion_merma: Optional[str] = None
     evento_id: Optional[UUID] = None
 
@@ -61,8 +63,10 @@ class RegistroStockOut(RegistroStockBase):
     usuario_id: int
     created_at: datetime
     
-    # Opcional: Podrías incluir info básica del producto para el historial
-    # producto_nombre: str (Se puede manejar con un alias o en el service)
+    # AGREGADO: Útil para que el historial en el front 
+    # no muestre solo UUIDs crudos
+    nombre_producto: Optional[str] = None 
+    nombre_bodega: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,3 +77,9 @@ class StockActualOut(BaseModel):
     cantidad_disponible: float
     unidad: str
     fecha_ultimo_recuento: date
+
+class MermaStatsOut(BaseModel):
+    total_perdida_7d: float
+    total_perdida_30d: float
+    porcentaje_salud: float # (Stock real vs Mermas)
+    datos_grafico: List[dict] # Para Recharts

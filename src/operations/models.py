@@ -26,7 +26,10 @@ class RegistroStock(BaseModel):
     bodega_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id"))
     cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     
-    tipo_movimiento: Mapped[str] = mapped_column(String(50), nullable=False)
+    tipo_movimiento: Mapped[TipoMovimiento] = mapped_column(
+        Enum(TipoMovimiento, schema=settings.DB_SCHEMA), 
+        nullable=False
+    )
     
     motivo_merma: Mapped[Optional[str]] = mapped_column(String(255))
     descripcion_merma: Mapped[Optional[str]] = mapped_column(String(500))
