@@ -23,11 +23,14 @@ class EventService:
                 nombre=event_data.nombre,
                 fecha=event_data.fecha,
                 valor_publico=event_data.valor_publico,
-                usuario_id=user_id
+                usuario_id=user_id,
+                ejecutado=False,
+                cancelado=False
             )
             self.db.add(nuevo_evento)
             await self.db.flush()
 
+            # 1. Procesar items directos (USANDO .items SEGÚN TU SCHEMA)
             for item in event_data.items:
                 self.db.add(EventoProducto(
                     evento_id=nuevo_evento.id,
@@ -36,6 +39,7 @@ class EventService:
                     cantidad=item.cantidad
                 ))
 
+            # 2. Procesar recetas
             for rec_req in event_data.recetas:
                 stmt = select(Receta).where(Receta.id == rec_req.receta_id).options(selectinload(Receta.ingredientes))
                 result = await self.db.execute(stmt)
@@ -51,8 +55,16 @@ class EventService:
                         ))
 
             await self.db.commit()
-            await self.db.refresh(nuevo_evento)
-            return nuevo_evento
+
+            # 3. CARGA ANSIOSA FINAL (Para evitar el 500 al responder)
+            stmt = (
+                select(Evento)
+                .options(selectinload(Evento.productos))
+                .where(Evento.id == nuevo_evento.id)
+            )
+            result = await self.db.execute(stmt)
+            return result.scalar_one()
+
         except Exception as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Error al crear: {str(e)}")

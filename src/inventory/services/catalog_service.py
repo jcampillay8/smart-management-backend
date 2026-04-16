@@ -1,8 +1,9 @@
 # src/inventory/services/catalog_service.py
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
-from typing import List
+from uuid import UUID
+from typing import List, Optional
 from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega
 from src.inventory.schemas import CategoriaCreate, ProductoCreate, BodegaCreate, ProductoBodegaCreate
 
@@ -20,12 +21,16 @@ class CatalogService:
         result = await self.db.execute(select(Bodega).order_by(Bodega.nombre))
         return result.scalars().all()
 
-    async def get_products(self) -> List[Producto]:
+    async def get_products(
+        self, 
+        categoria_id: Optional[UUID] = None, 
+        bodega_id: Optional[UUID] = None,
+        search: Optional[str] = None
+    ) -> List[Producto]:
         """
-        Obtiene la lista maestra de productos.
-        Carga las relaciones necesarias para que el front vea el stock_minimo 
-        configurado en cada bodega.
+        Obtiene la lista de productos aplicando filtros opcionales.
         """
+        # 1. Base de la consulta con Eager Loading para evitar MissingGreenlet
         stmt = (
             select(Producto)
             .options(
@@ -34,6 +39,24 @@ class CatalogService:
             )
             .order_by(Producto.nombre)
         )
+
+        # 2. Filtro por Categoría (Exacto)
+        if categoria_id:
+            stmt = stmt.where(Producto.categoria_id == categoria_id)
+
+        # 3. Filtro por Búsqueda (Case-Insensitive)
+        if search:
+            # Busca coincidencias parciales en el nombre del producto
+            stmt = stmt.where(Producto.nombre.ilike(f"%{search}%"))
+
+        # 4. Filtro por Bodega
+        # Si se envía bodega_id, filtramos los productos que tengan 
+        # configuración específica en esa bodega.
+        if bodega_id:
+            stmt = stmt.join(Producto.bodegas_config).where(
+                ProductoBodega.bodega_id == bodega_id
+            )
+
         result = await self.db.execute(stmt)
         return result.scalars().all()
 

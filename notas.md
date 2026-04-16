@@ -21,3 +21,8 @@
     - receta_ingredientes
     - ventas_recetas
 
+# ALEMBIC
+
+docker exec -it easy-backend alembic revision --autogenerate -m "add Tags Escenario Tables Avatars"
+
+docker exec -it easy-backend alembic upgrade head

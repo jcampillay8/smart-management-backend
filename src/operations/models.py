@@ -12,6 +12,10 @@ class TipoMovimiento(str, enum.Enum):
     CONTEO = "conteo"
     CONSUMO = "consumo"
     MERMA = "merma"
+    ENTRADA = "entrada"
+    AJUSTE_POSITIVO = "ajuste_positivo"
+    AJUSTE_NEGATIVO = "ajuste_negativo"
+    TRANSFERENCIA = "transferencia"
 
 class RegistroStock(BaseModel):
     __tablename__ = "registros_stock"
@@ -21,7 +25,8 @@ class RegistroStock(BaseModel):
     producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.productos.id", ondelete="CASCADE"))
     bodega_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id"))
     cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    tipo_movimiento: Mapped[TipoMovimiento] = mapped_column(Enum(TipoMovimiento), nullable=False)
+    
+    tipo_movimiento: Mapped[str] = mapped_column(String(50), nullable=False)
     
     motivo_merma: Mapped[Optional[str]] = mapped_column(String(255))
     descripcion_merma: Mapped[Optional[str]] = mapped_column(String(500))
@@ -33,10 +38,14 @@ class RegistroStock(BaseModel):
     evento_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.eventos.id", ondelete="SET NULL"))
     transfer_id: Mapped[Optional[str]] = mapped_column(String(100))
 
-    # Relaciones para facilitar consultas (lazy loading por defecto)
+    # --- RELACIONES ---
+    # Importante: Usamos strings para las rutas de los modelos para evitar importaciones circulares
     producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
     usuario: Mapped["User"] = relationship("src.models.User")
     evento: Mapped[Optional["Evento"]] = relationship("Evento")
+    
+    # NUEVA RELACIÓN: Esto es lo que faltaba para el history_service
+    bodega: Mapped["Bodega"] = relationship("src.inventory.models.Bodega")
 
 class Evento(BaseModel):
     __tablename__ = "eventos"

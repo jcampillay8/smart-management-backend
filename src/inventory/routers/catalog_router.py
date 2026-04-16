@@ -1,7 +1,8 @@
 # src/inventory/routers/catalog_router.py
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
+from uuid import UUID
 from src.database import get_async_session
 from src.inventory.services.catalog_service import CatalogService
 from src.inventory.schemas import (
@@ -25,14 +26,25 @@ async def list_bodegas(db: AsyncSession = Depends(get_async_session)):
     service = CatalogService(db)
     return await service.get_bodegas()
 
-@router.get("/products", response_model=List[ProductoOut], summary="List Products")
-async def list_products(db: AsyncSession = Depends(get_async_session)):
+@router.get("/products", response_model=List[ProductoOut], summary="List Products with Filters")
+async def list_products(
+    categoria_id: Optional[UUID] = Query(None, description="Filtrar por ID de categoría"),
+    bodega_id: Optional[UUID] = Query(None, description="Filtrar por ID de bodega"),
+    search: Optional[str] = Query(None, description="Buscar por nombre de producto"),
+    db: AsyncSession = Depends(get_async_session)
+):
     """
-    Retorna el catálogo de productos con sus unidades de medida 
-    y configuraciones de stock mínimo por bodega.
+    Retorna el catálogo de productos permitiendo filtrar por:
+    - **Categoría**: Solo productos de una familia específica.
+    - **Bodega**: Solo productos que tengan configuración en esa bodega.
+    - **Búsqueda**: Coincidencia parcial en el nombre.
     """
     service = CatalogService(db)
-    return await service.get_products()
+    return await service.get_products(
+        categoria_id=categoria_id,
+        bodega_id=bodega_id,
+        search=search
+    )
 
 @router.post("/categories", response_model=CategoriaOut, status_code=status.HTTP_201_CREATED)
 async def create_category(data: CategoriaCreate, db: AsyncSession = Depends(get_async_session)):

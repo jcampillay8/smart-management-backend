@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from uuid import UUID
 from datetime import datetime, date
 from typing import List, Optional
+from decimal import Decimal
 
 from src.operations.models import RegistroStock, Evento, EventoProducto
 from src.inventory.models import ProductoBodega
@@ -94,11 +95,15 @@ class StockService:
 
     async def create_movements(self, movements: List[RegistroStockCreate], user_id: int):
         """
-        USO: Interfaz de Usuario (StockRegistro.tsx).
         Procesa múltiples movimientos manuales (conteo, entrada, merma, transferencia).
+        Asegura compatibilidad entre tipos Decimal (DB) y float (JSON).
         """
         try:
             for mov in movements:
+                # 1. Convertir cantidad del movimiento a Decimal de forma segura
+                cant_mov = Decimal(str(mov.cantidad))
+                
+                # 2. Buscar (y bloquear para actualización) la configuración de bodega
                 stmt = select(ProductoBodega).where(
                     ProductoBodega.producto_id == mov.producto_id,
                     ProductoBodega.bodega_id == mov.bodega_id
@@ -107,37 +112,50 @@ class StockService:
                 result = await self.db.execute(stmt)
                 prod_bodega = result.scalar_one_or_none()
 
+                # Si no existe configuración, la creamos (o podrías lanzar error según tu preferencia)
                 if not prod_bodega:
                     prod_bodega = ProductoBodega(
                         producto_id=mov.producto_id,
                         bodega_id=mov.bodega_id,
-                        stock_actual=0.0
+                        stock_actual=Decimal("0.0")
                     )
                     self.db.add(prod_bodega)
+                    # Forzamos flush para que el objeto tenga estado en la sesión
+                    await self.db.flush()
 
-                cantidad_para_historial = mov.cantidad
+                # 3. Lógica de Stock y cantidad para el Historial
+                cantidad_para_historial = cant_mov
 
                 if mov.tipo_movimiento == "conteo":
-                    # El conteo sobreescribe el stock. Registramos la diferencia en el historial.
-                    diferencia = float(mov.cantidad) - float(prod_bodega.stock_actual)
-                    prod_bodega.stock_actual = float(mov.cantidad)
+                    # La diferencia es lo que realmente "entró" o "salió" para llegar al nuevo valor
+                    diferencia = cant_mov - prod_bodega.stock_actual
+                    prod_bodega.stock_actual = cant_mov
                     cantidad_para_historial = diferencia 
 
                 elif mov.tipo_movimiento in ["entrada", "ajuste_positivo"]:
-                    prod_bodega.stock_actual += float(mov.cantidad)
+                    prod_bodega.stock_actual += cant_mov
+                    # En entradas, la cantidad en el historial es positiva
 
-                else: # merma, salida, transferencia, consumo, ajuste_negativo
-                    prod_bodega.stock_actual += float(mov.cantidad)
+                else: 
+                    # merma, salida, transferencia, consumo, ajuste_negativo
+                    # Forzamos que la resta sea efectiva en stock_actual
+                    # Si el front envía 10 para una merma, restamos 10.
+                    # Si el front ya envía -10, hay que tener cuidado con no duplicar el signo.
+                    # Asumiremos que el front envía valores absolutos (positivos) y aquí restamos:
+                    valor_absoluto = abs(cant_mov)
+                    prod_bodega.stock_actual -= valor_absoluto
+                    cantidad_para_historial = -valor_absoluto # Guardamos como negativo en historial
 
-                # Preparar datos para RegistroStock (Historial)
+                # 4. Preparar datos para RegistroStock (Historial)
                 data_historial = mov.model_dump()
-                data_historial["cantidad"] = cantidad_para_historial
+                data_historial["cantidad"] = float(cantidad_para_historial) # Convertimos a float para el schema de salida
                 data_historial["usuario_id"] = user_id
 
                 self.db.add(RegistroStock(**data_historial))
 
             await self.db.commit()
             return True
+
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error en bulk movements: {str(e)}")
@@ -210,3 +228,48 @@ class StockService:
             
         result = await self.db.execute(query.order_by(RegistroStock.created_at.desc()))
         return result.scalars().all()
+
+    async def consume_stock_fifo(
+        self, 
+        producto_id: UUID, 
+        bodega_id: UUID, 
+        cantidad_total: float, 
+        user_id: int,  # Cambiado de usuario_id a user_id
+        receta_id: Optional[UUID] = None
+    ):
+        """
+        Descuenta stock para la preparación de una receta.
+        Acepta 'cantidad_total' y 'user_id' según los envía el router de operaciones.
+        """
+        # 1. Buscar y bloquear el stock de la bodega
+        stmt = select(ProductoBodega).where(
+            ProductoBodega.producto_id == producto_id,
+            ProductoBodega.bodega_id == bodega_id
+        ).with_for_update()
+        
+        result = await self.db.execute(stmt)
+        prod_bodega = result.scalar_one_or_none()
+
+        if not prod_bodega:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Producto {producto_id} no configurado en bodega {bodega_id}"
+            )
+
+        # 2. Registrar el movimiento en el historial
+        nuevo_registro = RegistroStock(
+            producto_id=producto_id,
+            bodega_id=bodega_id,
+            usuario_id=user_id, # Aquí usamos el valor recibido
+            cantidad=-abs(float(cantidad_total)),
+            tipo_movimiento="consumo",
+            fecha_recuento=date.today(),
+            transfer_id=f"RECETA_ID:{receta_id}" if receta_id else "RECETA_CONSUME"
+        )
+        self.db.add(nuevo_registro)
+
+        # 3. Actualizar el stock actual
+        prod_bodega.stock_actual -= Decimal(str(cantidad_total))
+        
+        # Mantenemos la transacción abierta para el router principal
+        await self.db.flush()
