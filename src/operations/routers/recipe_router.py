@@ -6,7 +6,7 @@ from typing import List
 
 from src.database import get_async_session
 from src.dependencies import get_current_user
-from src.authentication.models import User # Ajusta según tu ruta de User
+from src.models import User # Ajusta según tu ruta de User
 from src.operations.services.recipe_service import RecipeService
 from src.operations.schemas import RecetaCreate, RecetaOut # Asegúrate de tener estos schemas
 

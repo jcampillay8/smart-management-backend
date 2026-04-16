@@ -7,7 +7,7 @@ from uuid import UUID
 from typing import List, Optional
 
 # Importamos modelos y esquemas
-from src.operations.models import Receta, RecetaIngrediente
+from src.sales.models import Receta, RecetaIngrediente
 from src.operations.schemas import RecetaCreate
 from src.inventory.services.stock_service import StockService
 

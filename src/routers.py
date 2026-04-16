@@ -6,6 +6,7 @@ from src.registration.router import account_router
 from src.inventory.router import inventory_router
 from src.operations.router import operations_router
 from src.sales.router import sales_router
+from src.analytics.router import analytics_router
 
 routers = [
     auth_router,
@@ -14,5 +15,6 @@ routers = [
     account_router,
     inventory_router,
     operations_router,
-    sales_router
+    sales_router,
+    analytics_router  # Agregado a la lista maestra
 ]
