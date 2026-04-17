@@ -42,3 +42,17 @@ class DashboardSummaryOut(BaseModel):
     alertas_eventos: List[EventProjectionAlert] = [] # Agregado para Proyeccion.tsx
     
     model_config = ConfigDict(from_attributes=True)
+
+class ProjectionPoint(BaseModel):
+    fecha: date
+    cantidad: float
+    es_evento: bool = False
+    evento_nombre: Optional[str] = None
+
+class ProductoProyeccionDetalleOut(BaseModel):
+    producto_id: UUID
+    nombre: str
+    unidad: str
+    stock_actual: float
+    stock_minimo: float
+    puntos: List[ProjectionPoint]
