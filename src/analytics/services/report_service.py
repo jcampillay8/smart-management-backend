@@ -5,8 +5,9 @@ from datetime import date, timedelta
 from uuid import UUID
 from typing import List, Dict
 
-from src.inventory.models import Producto, RegistroStock, Bodega
-from src.operations.models import Receta
+from src.inventory.models import Producto, Bodega
+from src.operations.models import RegistroStock
+from src.sales.models import Receta
 
 class ReportService:
     def __init__(self, db: AsyncSession):

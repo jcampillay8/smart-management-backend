@@ -72,8 +72,8 @@ async def confirm_email(
     # 1. Activamos al usuario en la DB (Esto ya funciona en Neon)
     await reg_services.confirm_user_email(db_session=db_session, token=token)
     
-    # 2. Redirección directa al esquema de la app. 
-    # Si el AndroidManifest tiene BROWSABLE, esto despertará a la App.
-    app_url = f"oppychat://confirm-success?token={token}"
+    # 2. Redirección al frontend web
+    base = str(settings.WEBSITE_URL).rstrip('/')
+    app_url = f"{base}/login?confirmed=true&token={token}"
     
     return RedirectResponse(url=app_url)

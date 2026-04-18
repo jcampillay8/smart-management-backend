@@ -1,7 +1,7 @@
 # src/sales/models.py
 import uuid
 from typing import List # <--- IMPORTANTE para Mapped[List[...]]
-from sqlalchemy import String, ForeignKey, Numeric, Integer
+from sqlalchemy import String, ForeignKey, Numeric, Integer, Boolean, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database import BaseModel
 from src.config import settings
@@ -13,6 +13,7 @@ class Receta(BaseModel):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     precio: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     
     # Relación uno-a-muchos con ingredientes
     ingredientes: Mapped[List["RecetaIngrediente"]] = relationship(
@@ -46,7 +47,7 @@ class VentaReceta(BaseModel):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     receta_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey(f"{settings.DB_SCHEMA}.recetas.id", ondelete="CASCADE")
+        ForeignKey(f"{settings.DB_SCHEMA}.recetas.id", ondelete="RESTRICT")
     )
     cantidad: Mapped[int] = mapped_column(Integer, default=1)
     precio_unitario: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)

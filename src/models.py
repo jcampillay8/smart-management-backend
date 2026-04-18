@@ -166,3 +166,11 @@ class ReadStatus(RemoveBaseFieldsMixin, BaseModel):
 
     chat: Mapped["Chat"] = relationship()
     user: Mapped["User"] = relationship()
+
+class ConfiguracionRestaurante(BaseModel):
+    __tablename__ = "configuracion_restaurante"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)

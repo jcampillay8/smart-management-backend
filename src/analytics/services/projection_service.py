@@ -5,11 +5,12 @@ from datetime import date, timedelta # <--- IMPORTANTE: añadir timedelta
 from uuid import UUID
 from typing import List, Dict, Optional
 
-from src.inventory.models import Producto, RegistroStock, ProductoBodega, Bodega
-from src.operations.models import Evento, Receta, RecetaIngrediente
+from src.inventory.models import Producto, ProductoBodega, Bodega
+from src.operations.models import Evento, RegistroStock
+from src.sales.models import Receta, RecetaIngrediente
 from ..schemas import (
     EventProjectionAlert, 
-    ProductProjectionCurveOut, # <--- Asegúrate de que estos existan en schemas.py
+    ProductoProyeccionDetalleOut, 
     ProjectionPoint
 )
 
@@ -55,7 +56,7 @@ class ProjectionService:
 
     async def get_product_projection_curve(
         self, producto_id: UUID, bodega_id: UUID, dias: int = 30
-    ) -> ProductProjectionCurveOut:
+    ) -> ProductoProyeccionDetalleOut:
         """Genera la serie temporal de stock para el gráfico de Recharts."""
         hoy = date.today()
         limite = hoy + timedelta(days=dias)
@@ -82,10 +83,11 @@ class ProjectionService:
                 evento_nombre=eventos_hoy[0]["nombre"] if eventos_hoy else None
             ))
 
-        return ProductProjectionCurveOut(
+        return ProductoProyeccionDetalleOut(
             producto_id=producto.id,
             nombre=producto.nombre,
             unidad=producto.unidad,
+            stock_actual=cantidad_actual,
             stock_minimo=producto.stock_minimo,
             puntos=puntos
         )

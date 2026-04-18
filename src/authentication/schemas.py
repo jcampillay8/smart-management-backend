@@ -32,6 +32,7 @@ class UserPublicSchema(BaseModel):
     settings: Dict[str, Any] = Field(default_factory=dict)
     has_accepted_terms: bool = Field(..., alias="termsAccepted")
     token_expires_at: Optional[int] = Field(None, alias="tokenExpiresAt")
+    role: str = "user"
 
     @model_validator(mode='before')
     @classmethod

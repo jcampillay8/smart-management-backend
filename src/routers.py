@@ -7,6 +7,7 @@ from src.inventory.router import inventory_router
 from src.operations.router import operations_router
 from src.sales.router import sales_router
 from src.analytics.router import analytics_router
+from src.settings.router import settings_router
 
 routers = [
     auth_router,
@@ -16,5 +17,6 @@ routers = [
     inventory_router,
     operations_router,
     sales_router,
-    analytics_router  # Agregado a la lista maestra
+    analytics_router,  # Agregado a la lista maestra
+    settings_router
 ]

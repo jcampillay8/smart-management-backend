@@ -6,8 +6,9 @@ from uuid import UUID
 from typing import List
 
 # Importamos modelos de los otros módulos
-from src.inventory.models import Producto, Bodega, ProductoBodega, RegistroStock
-from src.operations.models import Receta, RecetaIngrediente, Evento
+from src.inventory.models import Producto, Bodega, ProductoBodega
+from src.sales.models import Receta, RecetaIngrediente
+from src.operations.models import Evento, RegistroStock
 from ..schemas import StockAlert, ExpiryAlert, DashboardSummaryOut, EventProjectionAlert
 
 class StatsService:

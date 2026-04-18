@@ -57,7 +57,7 @@ class GlobalSettings(BaseSettings):
     MAIL_FROM: str
     MAIL_PORT: int
     MAIL_SERVER: str
-    MAIL_FROM_NAME: str = "Tu Aplicación"
+    MAIL_FROM_NAME: str = "Easy Management"
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
     USE_CREDENTIALS: bool = True
@@ -66,8 +66,8 @@ class GlobalSettings(BaseSettings):
     # --- NUEVO: Email por API (Resend) ---
     EMAIL_PROVIDER: Literal["smtp", "resend"] = "smtp"
     RESEND_API_KEY: Optional[SecretStr] = None
-    EMAIL_FROM: Optional[str] = None                  # e.g. "OppyChat Support <oppychat@gmail.com>"
-    SUPPORT_EMAIL: EmailStr = "support@oppychat.com"  # default
+    EMAIL_FROM: Optional[str] = None
+    SUPPORT_EMAIL: EmailStr = "support@easymanagement.com"  # default
 
     @property
     def email_from_resolved(self) -> str:
