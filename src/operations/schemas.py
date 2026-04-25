@@ -101,3 +101,38 @@ class MermaStatsOut(BaseModel):
     total_perdida_30d: float
     porcentaje_salud: float 
     datos_grafico: List[dict]
+# --- CONTEOS DE INVENTARIO ---
+
+class ConteoItemBase(BaseModel):
+    producto_id: UUID
+    cantidad_contada: float
+    fecha_vencimiento: Optional[date] = None
+
+class ConteoItemCreate(ConteoItemBase):
+    pass
+
+class ConteoItem(ConteoItemBase):
+    id: UUID
+    conteo_id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class ConteoInventarioBase(BaseModel):
+    bodega_id: UUID
+    nombre: Optional[str] = Field(default=None, max_length=200)
+    estado: str = "en_progreso"
+
+class ConteoInventarioCreate(ConteoInventarioBase):
+    pass
+
+class ConteoInventarioUpdate(BaseModel):
+    nombre: Optional[str] = None
+    estado: Optional[str] = None
+    completed_at: Optional[datetime] = None
+
+class ConteoInventario(ConteoInventarioBase):
+    id: UUID
+    usuario_id: int
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    items: List[ConteoItem] = []
+    model_config = ConfigDict(from_attributes=True)

@@ -2,28 +2,37 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from datetime import date
+from datetime import date, timedelta
 
 from src.database import get_async_session
-from src.authentication.dependencies import get_current_user
+from src.dependencies import get_current_user
 from src.operations.schemas import RegistroStockOut
 from src.inventory.services.history_service import HistoryService
 
 router = APIRouter()
+
+
+def get_default_fecha_hasta():
+    return date.today()
+
+
+def get_default_fecha_desde():
+    return date.today() - timedelta(days=90)
+
 
 @router.get("/", response_model=List[RegistroStockOut])
 async def get_history(
     bodega_id: str = Query("all"),
     producto_id: str = Query("all"),
     tipo_movimiento: str = Query("all"),
-    fecha_desde: Optional[date] = None,
-    fecha_hasta: Optional[date] = None,
+    fecha_desde: Optional[date] = Query(default_factory=get_default_fecha_desde),
+    fecha_hasta: Optional[date] = Query(default_factory=get_default_fecha_hasta),
     db: AsyncSession = Depends(get_async_session),
     current_user = Depends(get_current_user)
 ):
     """
     Endpoint para obtener el historial filtrado.
-    Sustituye la consulta directa a Supabase en Historial.tsx.
+    Por defecto retorna los últimos 90 días de movimientos.
     """
     service = HistoryService(db)
     return await service.get_filtered_history(

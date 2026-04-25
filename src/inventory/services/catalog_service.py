@@ -103,6 +103,14 @@ class CatalogService:
         await self.db.refresh(config)
         return config
 
+    async def get_product_setup(self, bodega_id: Optional[UUID] = None) -> List[ProductoBodega]:
+        """Obtiene la configuración de productos en bodega(s)."""
+        stmt = select(ProductoBodega)
+        if bodega_id:
+            stmt = stmt.where(ProductoBodega.bodega_id == bodega_id)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     # === CATEGORÍAS (Update & Delete) ===
     async def update_category(self, categoria_id: UUID, data: CategoriaCreate) -> Categoria:
         result = await self.db.execute(select(Categoria).where(Categoria.id == categoria_id))

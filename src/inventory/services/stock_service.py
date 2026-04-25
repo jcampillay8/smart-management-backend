@@ -273,3 +273,81 @@ class StockService:
         
         # Mantenemos la transacción abierta para el router principal
         await self.db.flush()
+
+    async def transfer_stock(
+        self,
+        producto_id: UUID,
+        bodega_origen_id: UUID,
+        bodega_destino_id: UUID,
+        cantidad: float,
+        user_id: int,
+        fecha_recuento: date
+    ):
+        """Transfiere stock de una bodega a otra."""
+        if bodega_origen_id == bodega_destino_id:
+            raise HTTPException(status_code=400, detail="Origen y destino no pueden ser iguales")
+
+        if cantidad <= 0:
+            raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
+
+        stmt_origen = select(ProductoBodega).where(
+            ProductoBodega.producto_id == producto_id,
+            ProductoBodega.bodega_id == bodega_origen_id
+        ).with_for_update()
+        
+        result = await self.db.execute(stmt_origen)
+        prod_origen = result.scalar_one_or_none()
+
+        if not prod_origen:
+            raise HTTPException(status_code=404, detail="Producto no configurado en bodega origen")
+
+        if prod_origen.stock_actual < cantidad:
+            raise HTTPException(status_code=400, detail="Stock insuficiente en bodega origen")
+
+        stmt_destino = select(ProductoBodega).where(
+            ProductoBodega.producto_id == producto_id,
+            ProductoBodega.bodega_id == bodega_destino_id
+        ).with_for_update()
+        
+        result = await self.db.execute(stmt_destino)
+        prod_destino = result.scalar_one_or_none()
+
+        if not prod_destino:
+            prod_destino = ProductoBodega(
+                producto_id=producto_id,
+                bodega_id=bodega_destino_id,
+                stock_actual=0.0
+            )
+            self.db.add(prod_destino)
+            await self.db.flush()
+
+        prod_origen.stock_actual -= Decimal(str(cantidad))
+        prod_destino.stock_actual += Decimal(str(cantidad))
+
+        transfer_id = UUID()
+        
+        reg_salida = RegistroStock(
+            producto_id=producto_id,
+            bodega_id=bodega_origen_id,
+            usuario_id=user_id,
+            cantidad=-cantidad,
+            tipo_movimiento="transferencia",
+            fecha_recuento=fecha_recuento,
+            transfer_id=transfer_id
+        )
+        self.db.add(reg_salida)
+
+        reg_entrada = RegistroStock(
+            producto_id=producto_id,
+            bodega_id=bodega_destino_id,
+            usuario_id=user_id,
+            cantidad=cantidad,
+            tipo_movimiento="transferencia",
+            fecha_recuento=fecha_recuento,
+            transfer_id=transfer_id
+        )
+        self.db.add(reg_entrada)
+
+        await self.db.commit()
+
+        return {"message": "Transferencia completada", "transfer_id": str(transfer_id)}

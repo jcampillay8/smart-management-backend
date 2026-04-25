@@ -8,6 +8,9 @@ from src.operations.router import operations_router
 from src.sales.router import sales_router
 from src.analytics.router import analytics_router
 from src.settings.router import settings_router
+from src.purchases.router import router as purchases_router
+from src.storage.router import router as storage_router
+from src.ai_management.router import router as ai_router
 
 routers = [
     auth_router,
@@ -17,6 +20,9 @@ routers = [
     inventory_router,
     operations_router,
     sales_router,
-    analytics_router,  # Agregado a la lista maestra
-    settings_router
+    analytics_router,
+    settings_router,
+    purchases_router,
+    storage_router,
+    ai_router
 ]

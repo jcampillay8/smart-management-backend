@@ -126,3 +126,11 @@ async def setup_product_in_bodega(
 ):
     """Asigna o actualiza stock mínimo por bodega."""
     return await CatalogService(db).link_product_to_bodega(data)
+
+@router.get("/product-setup", response_model=List[ProductoBodegaOut])
+async def get_product_setup(
+    bodega_id: Optional[UUID] = Query(None, description="Filtrar por bodega"),
+    db: AsyncSession = Depends(get_async_session)
+):
+    """Obtiene la configuración de productos en bodega(s)."""
+    return await CatalogService(db).get_product_setup(bodega_id)

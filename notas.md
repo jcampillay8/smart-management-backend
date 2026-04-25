@@ -23,6 +23,8 @@
 
 # ALEMBIC
 
-docker exec -it easy-backend alembic revision --autogenerate -m "add Tags Escenario Tables Avatars"
+docker exec -it easy-backend alembic revision --autogenerate -m "add_missing_tables_and_fields"
 
 docker exec -it easy-backend alembic upgrade head
+
+

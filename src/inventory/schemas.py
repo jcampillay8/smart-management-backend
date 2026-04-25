@@ -22,6 +22,7 @@ class CategoriaOut(CategoriaBase):
 # ==========================================
 class BodegaBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
+    icono: Optional[str] = Field(default=None, max_length=50)
 
 class BodegaCreate(BodegaBase):
     pass
@@ -103,3 +104,10 @@ class RegistroStockOut(BaseModel):
 
 class StockBulkCreate(BaseModel):
     movements: List[RegistroStockCreate]
+
+class TransferenciaStockCreate(BaseModel):
+    producto_id: UUID
+    bodega_origen_id: UUID
+    bodega_destino_id: UUID
+    cantidad: float = Field(..., gt=0)
+    fecha_recuento: date = Field(default_factory=date.today)

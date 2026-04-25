@@ -1,11 +1,12 @@
 FROM python:3.12-slim
 
+# 1. Variables de entorno para Python
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Dependencias del sistema (Incluye librerías para Pillow/ReportLab si generas PDFs de ventas)
+# 2. Instalación de dependencias del sistema
 RUN apt-get update && \
     apt-get install -y \
     build-essential \
@@ -22,21 +23,18 @@ RUN apt-get update && \
     shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalación de UV y dependencias
+# 3. Traer uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# 4. Preparar dependencias
 COPY pyproject.toml ./
-RUN curl -Ls https://astral.sh/uv/install.sh | bash && \
-    cp /root/.local/bin/uv /usr/local/bin/uv && \
-    uv pip compile pyproject.toml -o requirements.txt && \
-    sed -i 's/fastapi-limiter>=.*/fastapi-limiter==0.1.6/' requirements.txt && \
+
+# 5. Instalar con uv (las versiones conflictivas ya están fijadas en pyproject.toml)
+RUN uv pip compile pyproject.toml -o requirements.txt && \
     uv pip install -r requirements.txt --system
 
-# Fix de compatibilidad Pydantic v2
-RUN pip install --upgrade pip setuptools wheel && \
-    pip uninstall -y fastapi-mail fastapi-limiter || true && \
-    pip install "fastapi-mail==1.5.0" "fastapi-limiter==0.1.6" "pydantic>=2.7.0" "pydantic-settings>=2.0.3"
-
+# 6. Copiar el resto del código
 COPY . .
 
-EXPOSE 8000
-
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 7. Comando de inicio
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -21,6 +21,11 @@ class RecetaIngredienteOut(RecetaIngredienteBase):
 class RecetaBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=200)
     precio: float = Field(..., ge=0)
+    iva_porcentaje: float = Field(default=19.0, ge=0)
+    iva_incluido: bool = Field(default=True)
+    is_active: bool = Field(default=True)
+    imagen_url: Optional[str] = None
+    categoria_receta_id: Optional[UUID] = None
 
 class RecetaCreate(RecetaBase):
     # Permite enviar la lista de ingredientes al crear la receta

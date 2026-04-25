@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, List, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, Table, Column, func, text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, Table, Column, Numeric, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,8 +19,9 @@ from src.authentication.models import (
     PasswordResetToken
 )
 from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega
-from src.operations.models import RegistroStock, Evento, EventoProducto
-from src.sales.models import Receta, RecetaIngrediente, VentaReceta
+from src.operations.models import RegistroStock, Evento, EventoProducto, ConteoInventario, ConteoItem
+from src.sales.models import Receta, RecetaIngrediente, VentaReceta, CategoriaReceta
+from src.purchases.models import Compra, CompraItem
 from src.ai_management.models import LLMRequestLog
 
 # NOTA: Los modelos de ai_manage y common_errors se comentan para priorizar Auth.
@@ -115,6 +116,72 @@ class PermisoMerma(BaseModel):
     user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="permisos_otorgados")
     autorizador: Mapped["User"] = relationship("User", foreign_keys=[otorgado_por])
 
+class PermisoGestionUsuario(BaseModel):
+    __tablename__ = "permisos_gestion_usuarios"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"), unique=True)
+    otorgado_por: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    autorizador: Mapped["User"] = relationship("User", foreign_keys=[otorgado_por])
+
+
+class PermisoInventario(BaseModel):
+    __tablename__ = "permisos_inventario"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"), unique=True)
+    otorgado_por: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    autorizador: Mapped["User"] = relationship("User", foreign_keys=[otorgado_por])
+
+
+class PermisoGestionProductos(BaseModel):
+    __tablename__ = "permisos_gestion_productos"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"), unique=True)
+    otorgado_por: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    autorizador: Mapped["User"] = relationship("User", foreign_keys=[otorgado_por])
+
+
+class TicketSoporte(BaseModel):
+    __tablename__ = "tickets_soporte"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"))
+    asunto: Mapped[str] = mapped_column(String(500), nullable=False)
+    descripcion: Mapped[str] = mapped_column(String(2000), nullable=False)
+    estado: Mapped[str] = mapped_column(String(50), server_default="abierto")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    usuario: Mapped["User"] = relationship("User", foreign_keys=[usuario_id])
+
+
+class Sugerencia(BaseModel):
+    __tablename__ = "sugerencias"
+    __table_args__ = ({'schema': settings.DB_SCHEMA})
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="CASCADE"))
+    contenido: Mapped[str] = mapped_column(String(2000), nullable=False)
+    estado: Mapped[str] = mapped_column(String(50), server_default="recibida")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    usuario: Mapped["User"] = relationship("User", foreign_keys=[usuario_id])
+
 class Message(BaseModel):
     __tablename__ = "messages"
     __table_args__ = (
@@ -174,3 +241,4 @@ class ConfiguracionRestaurante(BaseModel):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     logo_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    dias_alerta_vencimiento: Mapped[float] = mapped_column(Numeric(5, 0), default=5.0, server_default=text("5"))
