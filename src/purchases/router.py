@@ -106,3 +106,95 @@ async def scan_invoice(
     current_user: User = Depends(get_current_user)
 ):
     return await scan_invoice_ai(request.imageBase64, request.mimeType)
+
+@router.patch("/{purchase_id}/cancel", response_model=schemas.Compra)
+async def cancel_purchase(
+    purchase_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    result = await db.execute(stmt)
+    db_purchase = result.scalar_one_or_none()
+    if not db_purchase:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
+    
+    db_purchase.estado = "cancelada"
+    await db.commit()
+    await db.refresh(db_purchase)
+    return db_purchase
+
+@router.patch("/{purchase_id}/restore", response_model=schemas.Compra)
+async def restore_purchase(
+    purchase_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    result = await db.execute(stmt)
+    db_purchase = result.scalar_one_or_none()
+    if not db_purchase:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
+    
+    db_purchase.estado = "pendiente"
+    db_purchase.pedido_realizado = False
+    await db.commit()
+    await db.refresh(db_purchase)
+    return db_purchase
+
+@router.patch("/{purchase_id}/pedido", response_model=schemas.Compra)
+async def mark_pedido(
+    purchase_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    result = await db.execute(stmt)
+    db_purchase = result.scalar_one_or_none()
+    if not db_purchase:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
+    
+    db_purchase.pedido_realizado = True
+    await db.commit()
+    await db.refresh(db_purchase)
+    return db_purchase
+
+@router.patch("/{purchase_id}/receive", response_model=schemas.Compra)
+async def receive_purchase(
+    purchase_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    result = await db.execute(stmt)
+    db_purchase = result.scalar_one_or_none()
+    if not db_purchase:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
+    
+    db_purchase.estado = "realizada"
+    
+    items_stmt = select(models.CompraItem).where(models.CompraItem.compra_id == purchase_id)
+    items_result = await db.execute(items_stmt)
+    items = items_result.scalars().all()
+    
+    for item in items:
+        if item.bodega_id:
+            stock_stmt = select(ProductoBodega).where(
+                ProductoBodega.producto_id == item.producto_id,
+                ProductoBodega.bodega_id == item.bodega_id
+            )
+            stock_result = await db.execute(stock_stmt)
+            pb = stock_result.scalar_one_or_none()
+            if pb:
+                pb.stock_actual += item.cantidad
+            else:
+                new_pb = ProductoBodega(
+                    producto_id=item.producto_id,
+                    bodega_id=item.bodega_id,
+                    stock_actual=item.cantidad
+                )
+                db.add(new_pb)
+    
+    await db.commit()
+    await db.refresh(db_purchase)
+    return db_purchase

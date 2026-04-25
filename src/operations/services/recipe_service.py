@@ -194,3 +194,9 @@ class RecipeService:
             })
         
         return {"puede_producir": todo_disponible, "ingredientes": reporte}
+
+    async def get_all_ingredients(self):
+        """Obtiene todos los ingredientes de todas las recetas."""
+        stmt = select(RecetaIngrediente)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()

@@ -1,146 +1,105 @@
 # src/operations/services/event_service.py
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
-from sqlalchemy.orm import selectinload, joinedload # <--- joinedload es clave aquí
-from fastapi import HTTPException, status
+from sqlalchemy import select
+from fastapi import HTTPException
 from uuid import UUID
-from typing import List
+import logging
 
-from src.operations.models import Evento, EventoProducto, RegistroStock
-from src.operations.schemas import EventoCreate
-from src.inventory.services.stock_service import StockService
-from src.inventory.models import Producto, Bodega # <--- Para traer nombres
-from src.sales.models import Receta
+from src.operations.models import Evento, EventoProducto
+from src.operations.schemas import EventoCreate, EventoUpdate
+
+logger = logging.getLogger(__name__)
 
 class EventService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.stock_service = StockService(db)
 
-    async def create_event(self, event_data: EventoCreate, user_id: int):
+    async def get_all_events(self):
+        """Lista todos los eventos - sin relaciones."""
         try:
-            nuevo_evento = Evento(
+            result = await self.db.execute(select(Evento))
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"Error getting events: {e}")
+            return []
+
+    async def create_event(self, event_data, user_id: int):
+        """Crea un evento."""
+        try:
+            nuevo = Evento(
                 nombre=event_data.nombre,
                 fecha=event_data.fecha,
                 valor_publico=event_data.valor_publico,
-                usuario_id=user_id,
-                ejecutado=False,
-                cancelado=False
+                usuario_id=user_id
             )
-            self.db.add(nuevo_evento)
-            await self.db.flush()
-
-            # 1. Procesar items directos (USANDO .items SEGÚN TU SCHEMA)
-            for item in event_data.items:
-                self.db.add(EventoProducto(
-                    evento_id=nuevo_evento.id,
-                    producto_id=item.producto_id,
-                    bodega_id=item.bodega_id,
-                    cantidad=item.cantidad
-                ))
-
-            # 2. Procesar recetas
-            for rec_req in event_data.recetas:
-                stmt = select(Receta).where(Receta.id == rec_req.receta_id).options(selectinload(Receta.ingredientes))
-                result = await self.db.execute(stmt)
-                receta = result.scalar_one_or_none()
-                
-                if receta:
-                    for ingrediente in receta.ingredientes:
-                        self.db.add(EventoProducto(
-                            evento_id=nuevo_evento.id,
-                            producto_id=ingrediente.producto_id,
-                            bodega_id=ingrediente.bodega_id,
-                            cantidad=ingrediente.cantidad * rec_req.cantidad
-                        ))
-
+            self.db.add(nuevo)
             await self.db.commit()
-
-            # 3. CARGA ANSIOSA FINAL (Para evitar el 500 al responder)
-            stmt = (
-                select(Evento)
-                .options(selectinload(Evento.productos))
-                .where(Evento.id == nuevo_evento.id)
-            )
-            result = await self.db.execute(stmt)
-            return result.scalar_one()
-
+            await self.db.refresh(nuevo)
+            return nuevo
         except Exception as e:
+            logger.error(f"Error creating event: {e}")
             await self.db.rollback()
-            raise HTTPException(status_code=500, detail=f"Error al crear: {str(e)}")
+            raise HTTPException(500, str(e))
+
+    async def get_event_by_id(self, event_id: UUID):
+        """Obtiene un evento por ID."""
+        result = await self.db.execute(select(Evento).where(Evento.id == event_id))
+        return result.scalar_one_or_none()
+
+    async def update_event(self, event_id: UUID, event_data):
+        """Actualiza un evento."""
+        evento = await self.get_event_by_id(event_id)
+        if not evento:
+            raise HTTPException(404, "Evento no encontrado")
+        if evento.ejecutado or evento.cancelado:
+            raise HTTPException(400, "No se puede editar")
+        
+        if event_data.nombre:
+            evento.nombre = event_data.nombre
+        if event_data.fecha:
+            evento.fecha = event_data.fecha
+        if event_data.valor_publico is not None:
+            evento.valor_publico = event_data.valor_publico
+        
+        await self.db.commit()
+        await self.db.refresh(evento)
+        return evento
+
+    async def delete_event(self, event_id: UUID, user_id: int):
+        """Elimina un evento."""
+        evento = await self.get_event_by_id(event_id)
+        if not evento:
+            raise HTTPException(404, "Evento no encontrado")
+        await self.db.delete(evento)
+        await self.db.commit()
 
     async def execute_event(self, event_id: UUID, user_id: int):
-        stmt = select(Evento).where(Evento.id == event_id).options(selectinload(Evento.productos))
-        result = await self.db.execute(stmt)
-        evento = result.scalar_one_or_none()
-
+        """Ejecuta un evento (marca como ejecutado)."""
+        evento = await self.get_event_by_id(event_id)
         if not evento or evento.ejecutado:
-            raise HTTPException(status_code=400, detail="Evento no válido o ya ejecutado")
-
-        try:
-            # Atomicidad: consume_stock_masivo ya maneja los RegistroStock y el caché
-            await self.stock_service.consume_stock_masivo(
-                items=evento.productos, 
-                user_id=user_id, 
-                event_id=evento.id
-            )
-
-            evento.ejecutado = True
-            await self.db.commit()
-            return evento
-        except Exception as e:
-            await self.db.rollback()
-            raise e
+            raise HTTPException(400, "Evento no válido o ya ejecutado")
+        evento.ejecutado = True
+        await self.db.commit()
+        return evento
 
     async def cancel_event(self, event_id: UUID):
-        """
-        NUEVO: Lógica para revertir. 
-        Si el evento estaba ejecutado, borramos los consumos y devolvemos stock.
-        """
-        stmt = select(Evento).where(Evento.id == event_id).options(selectinload(Evento.productos))
-        result = await self.db.execute(stmt)
-        evento = result.scalar_one_or_none()
-
+        """Cancela un evento."""
+        evento = await self.get_event_by_id(event_id)
         if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
+            raise HTTPException(404, "Evento no encontrado")
+        evento.cancelado = True
+        evento.ejecutado = False
+        await self.db.commit()
+        return evento
 
-        try:
-            if evento.ejecutado:
-                # 1. Buscar registros de stock asociados
-                stmt_stock = select(RegistroStock).where(RegistroStock.evento_id == event_id)
-                res_stock = await self.db.execute(stmt_stock)
-                registros = res_stock.scalars().all()
-
-                # 2. Revertir el caché en ProductoBodega
-                for reg in registros:
-                    # Aquí podrías inyectar lógica de stock_service para 'devolver'
-                    pass # (Implementar devolución similar a consumo pero con +)
-
-                # 3. Borrar registros de stock
-                await self.db.execute(delete(RegistroStock).where(RegistroStock.evento_id == event_id))
-
-            evento.cancelado = True
-            evento.ejecutado = False
-            await self.db.commit()
-            return evento
-        except Exception as e:
-            await self.db.rollback()
-            raise HTTPException(status_code=500, detail=f"Error al cancelar: {str(e)}")
-
-    async def get_all_events(self):
-        """
-        AJUSTE DE RENDIMIENTO: Usamos joinedload para traer 
-        nombres de productos y bodegas en una sola consulta SQL.
-        """
-        stmt = (
-            select(Evento)
-            .options(
-                selectinload(Evento.productos)
-                .joinedload(EventoProducto.producto), # Trae el objeto Producto
-                selectinload(Evento.productos)
-                .joinedload(EventoProducto.bodega)    # Trae el objeto Bodega
-            )
-            .order_by(Evento.fecha.desc())
-        )
-        result = await self.db.execute(stmt)
-        return result.scalars().all()
+    async def reactivate_event(self, event_id: UUID):
+        """Reactiva un evento cancelado."""
+        evento = await self.get_event_by_id(event_id)
+        if not evento:
+            raise HTTPException(404, "Evento no encontrado")
+        if not evento.cancelado:
+            raise HTTPException(400, "El evento no está cancelado")
+        evento.cancelado = False
+        evento.ejecutado = False
+        await self.db.commit()
+        return evento

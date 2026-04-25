@@ -80,3 +80,12 @@ async def check_recipe_stock(
     """Consulta si hay ingredientes suficientes para producir una cantidad."""
     service = RecipeService(db)
     return await service.check_recipe_availability(receta_id, cantidad)
+
+@router.get("/ingredients")
+async def list_all_recipe_ingredients(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Obtiene todos los ingredientes de todas las recetas."""
+    service = RecipeService(db)
+    return await service.get_all_ingredients()

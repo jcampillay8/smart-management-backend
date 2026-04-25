@@ -53,13 +53,20 @@ class EventoCreate(EventoBase):
     items: List[EventoProductoSchema] = []
     recetas: List[EventoRecetaSchema] = []
 
+class EventoUpdate(BaseModel):
+    nombre: Optional[str] = Field(None, min_length=3, max_length=200)
+    fecha: Optional[date] = None
+    valor_publico: Optional[float] = Field(None, ge=0)
+    items: Optional[List[EventoProductoSchema]] = None
+    recetas: Optional[List[EventoRecetaSchema]] = None
+
 class EventoOut(EventoBase):
     id: UUID
-    ejecutado: bool
-    cancelado: bool
+    ejecutado: bool = False
+    cancelado: bool = False
     usuario_id: int
-    created_at: datetime
-    productos: List[EventoProductoSchema] = []
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
     model_config = ConfigDict(from_attributes=True)
 
 # --- REGISTROS DE STOCK (Movimientos) ---

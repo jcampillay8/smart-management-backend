@@ -1,7 +1,7 @@
 # src/inventory/services/stock_service.py
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from fastapi import HTTPException, status
 from uuid import UUID
 from datetime import datetime, date
@@ -92,6 +92,29 @@ class StockService:
 
             # Actualización de stock en caché
             prod_bodega.stock_actual -= float(item.cantidad)
+
+    async def return_stock_masivo(self, items: List[EventoProducto], event_id: UUID):
+        """
+        USO: Revertir consumos de un evento cancelado.
+        Devuelve el stock y elimina los registros de consumo asociados.
+        """
+        stmt = select(RegistroStock).where(RegistroStock.evento_id == event_id)
+        result = await self.db.execute(stmt)
+        registros = result.scalars().all()
+        
+        for reg in registros:
+            stmt_pb = select(ProductoBodega).where(
+                ProductoBodega.producto_id == reg.producto_id,
+                ProductoBodega.bodega_id == reg.bodega_id
+            ).with_for_update()
+            result_pb = await self.db.execute(stmt_pb)
+            prod_bodega = result_pb.scalar_one_or_none()
+            
+            if prod_bodega:
+                prod_bodega.stock_actual += abs(float(reg.cantidad))
+        
+        for reg in registros:
+            await self.db.delete(reg)
 
     async def create_movements(self, movements: List[RegistroStockCreate], user_id: int):
         """

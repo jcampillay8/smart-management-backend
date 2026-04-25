@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from datetime import date, timedelta
+from datetime import date
 
 from src.database import get_async_session
 from src.dependencies import get_current_user
@@ -25,8 +25,9 @@ async def get_history(
     bodega_id: str = Query("all"),
     producto_id: str = Query("all"),
     tipo_movimiento: str = Query("all"),
-    fecha_desde: Optional[date] = Query(default_factory=get_default_fecha_desde),
-    fecha_hasta: Optional[date] = Query(default_factory=get_default_fecha_hasta),
+    fecha_desde: Optional[date] = Query(default=None),
+    fecha_hasta: Optional[date] = Query(default=None),
+    limit: int = Query(default=500, le=2000),
     db: AsyncSession = Depends(get_async_session),
     current_user = Depends(get_current_user)
 ):
