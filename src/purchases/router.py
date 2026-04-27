@@ -198,3 +198,87 @@ async def receive_purchase(
     await db.commit()
     await db.refresh(db_purchase)
     return db_purchase
+
+
+# ======================
+# PROVEEDORES
+# ======================
+@router.get("/suppliers/", response_model=List[schemas.ProveedorOut])
+async def list_proveedores(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Lista todos los proveedores ordenados por nombre de empresa"""
+    stmt = select(models.Proveedor).order_by(models.Proveedor.nombre_empresa)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+@router.post("/suppliers/", response_model=schemas.ProveedorOut, status_code=status.HTTP_201_CREATED)
+async def create_proveedor(
+    proveedor: schemas.ProveedorCreate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Crea un nuevo proveedor"""
+    db_proveedor = models.Proveedor(**proveedor.model_dump())
+    db.add(db_proveedor)
+    await db.commit()
+    await db.refresh(db_proveedor)
+    return db_proveedor
+
+
+@router.get("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
+async def get_proveedor(
+    proveedor_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Obtiene un proveedor por su ID"""
+    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
+    result = await db.execute(stmt)
+    db_proveedor = result.scalar_one_or_none()
+    if not db_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    return db_proveedor
+
+
+@router.put("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
+async def update_proveedor(
+    proveedor_id: uuid.UUID,
+    proveedor_update: schemas.ProveedorUpdate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Actualiza un proveedor existente"""
+    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
+    result = await db.execute(stmt)
+    db_proveedor = result.scalar_one_or_none()
+    if not db_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    update_data = proveedor_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_proveedor, key, value)
+    
+    await db.commit()
+    await db.refresh(db_proveedor)
+    return db_proveedor
+
+
+@router.delete("/suppliers/{proveedor_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_proveedor(
+    proveedor_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Elimina un proveedor"""
+    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
+    result = await db.execute(stmt)
+    db_proveedor = result.scalar_one_or_none()
+    if not db_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    await db.delete(db_proveedor)
+    await db.commit()
+    return None

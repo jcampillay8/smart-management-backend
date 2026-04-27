@@ -54,3 +54,35 @@ class ScanInvoiceRequest(BaseModel):
 class ScanRecipeRequest(BaseModel):
     imageBase64: str
     mimeType: Optional[str] = "image/jpeg"
+
+
+# ======================
+# PROVEEDORES
+# ======================
+class ProveedorBase(BaseModel):
+    nombre_empresa: str
+    rut: Optional[str] = None
+    nombre_contacto: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ProveedorCreate(ProveedorBase):
+    pass
+
+
+class ProveedorUpdate(BaseModel):
+    nombre_empresa: Optional[str] = None
+    rut: Optional[str] = None
+    nombre_contacto: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ProveedorOut(ProveedorBase):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)

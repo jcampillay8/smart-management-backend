@@ -1,45 +1,54 @@
 # src/purchases/models.py
 import uuid
-from datetime import datetime, date
 from typing import List, Optional
-from sqlalchemy import String, ForeignKey, Numeric, DateTime, Date, func, text, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime, date
+
+from sqlalchemy import Column, String, Numeric, Boolean, Date, Integer, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from src.database import BaseModel
 from src.config import settings
 
+
+class Proveedor(BaseModel):
+    __tablename__ = "proveedores"
+    __table_args__ = {"schema": settings.DB_SCHEMA}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre_empresa: Mapped[str] = mapped_column(String(255), nullable=False)
+    rut: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    nombre_contacto: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    telefono: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    direccion: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
 class Compra(BaseModel):
     __tablename__ = "compras"
-    __table_args__ = ({'schema': settings.DB_SCHEMA})
+    __table_args__ = {"schema": settings.DB_SCHEMA}
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id"))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[int] = mapped_column(Integer, nullable=False)
     estado: Mapped[str] = mapped_column(String(50), default="pendiente")
-    pedido_realizado: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
-    fecha: Mapped[date] = mapped_column(Date, server_default=func.current_date())
-    total: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
-    factura_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    proveedor: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    pedido_realizado: Mapped[bool] = mapped_column(Boolean, default=False)
+    fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    factura_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    proveedor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     notas: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    usuario: Mapped["User"] = relationship("src.models.User")
     items: Mapped[List["CompraItem"]] = relationship(back_populates="compra", cascade="all, delete-orphan")
+
 
 class CompraItem(BaseModel):
     __tablename__ = "compra_items"
-    __table_args__ = ({'schema': settings.DB_SCHEMA})
+    __table_args__ = {"schema": settings.DB_SCHEMA}
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    compra_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.compras.id", ondelete="CASCADE"))
-    producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.productos.id"))
-    bodega_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id"), nullable=True)
-    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
-    precio_unitario: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    compra_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.compras.id", ondelete="CASCADE"))
+    producto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    bodega_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    precio_unitario: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
 
     compra: Mapped["Compra"] = relationship(back_populates="items")
-    producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
-    bodega: Mapped[Optional["Bodega"]] = relationship("src.inventory.models.Bodega")
