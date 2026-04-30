@@ -17,6 +17,15 @@ class TipoMovimiento(str, enum.Enum):
     AJUSTE_NEGATIVO = "ajuste_negativo"
     TRANSFERENCIA = "transferencia"
 
+class MotivoMerma(str, enum.Enum):
+    VENCIMIENTO = "vencimiento"
+    DANO = "daño"
+    ERROR = "error"
+    CADUCIDAD = "caducidad"
+    EXCESO = "exceso"
+    MAL_ESTADO = "mal estado"
+    OTRO = "otro"
+
 class RegistroStock(BaseModel):
     __tablename__ = "registros_stock"
     __table_args__ = ({'schema': settings.DB_SCHEMA})
@@ -31,7 +40,10 @@ class RegistroStock(BaseModel):
         nullable=False
     )
     
-    motivo_merma: Mapped[Optional[str]] = mapped_column(String(255))
+    motivo_merma: Mapped[Optional[MotivoMerma]] = mapped_column(
+        Enum(MotivoMerma, schema=settings.DB_SCHEMA, name="motivo_merma_enum", values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True
+    )
     descripcion_merma: Mapped[Optional[str]] = mapped_column(String(500))
     
     fecha_recuento: Mapped[date] = mapped_column(Date, server_default=func.current_date())

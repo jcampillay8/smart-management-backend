@@ -24,7 +24,7 @@ class CompraBase(BaseModel):
     fecha: date
     total: float
     factura_url: Optional[str] = None
-    proveedor: Optional[str] = None
+    proveedor_id: Optional[uuid.UUID] = None
     notas: Optional[str] = None
 
 class CompraCreate(CompraBase):
@@ -36,7 +36,7 @@ class CompraUpdate(BaseModel):
     fecha: Optional[date] = None
     total: Optional[float] = None
     factura_url: Optional[str] = None
-    proveedor: Optional[str] = None
+    proveedor_id: Optional[uuid.UUID] = None
     notas: Optional[str] = None
 
 class Compra(CompraBase):

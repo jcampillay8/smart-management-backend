@@ -21,6 +21,14 @@ class Proveedor(BaseModel):
     telefono: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     direccion: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    categoria_principal: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) 
+    dias_plazo_pago: Mapped[int] = mapped_column(Integer, default=0) 
+    tiempo_entrega_promedio_dias: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    compras: Mapped[List["Compra"]] = relationship(back_populates="proveedor_rel")
+    productos: Mapped[List["src.inventory.models.Producto"]] = relationship(back_populates="proveedor_principal")
 
 
 class Compra(BaseModel):
@@ -34,7 +42,8 @@ class Compra(BaseModel):
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
     total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     factura_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    proveedor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    proveedor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.proveedores.id", ondelete="SET NULL"), nullable=True)
+    proveedor_rel: Mapped[Optional["Proveedor"]] = relationship(back_populates="compras")
     notas: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
 
     items: Mapped[List["CompraItem"]] = relationship(back_populates="compra", cascade="all, delete-orphan")
