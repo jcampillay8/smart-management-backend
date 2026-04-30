@@ -136,3 +136,29 @@ class ConteoItem(BaseModel):
 
     conteo: Mapped["ConteoInventario"] = relationship(back_populates="items")
     producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
+
+# --- NUEVO MODELO PARA TRANSFERENCIAS INTER-BODEGAS (Vista 5) ---
+class Transferencia(BaseModel):
+    __tablename__ = "transferencias"
+    __table_args__ = {"schema": settings.DB_SCHEMA}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    producto_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{settings.DB_SCHEMA}.productos.id", ondelete="CASCADE"), nullable=False
+    )
+    bodega_origen_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id", ondelete="CASCADE"), nullable=False
+    )
+    bodega_destino_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id", ondelete="CASCADE"), nullable=False
+    )
+    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id"), nullable=False)
+    motivo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Relaciones
+    producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
+    bodega_origen: Mapped["Bodega"] = relationship("src.inventory.models.Bodega", foreign_keys=[bodega_origen_id])
+    bodega_destino: Mapped["Bodega"] = relationship("src.inventory.models.Bodega", foreign_keys=[bodega_destino_id])
+    usuario: Mapped["User"] = relationship("src.models.User")

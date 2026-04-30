@@ -27,6 +27,15 @@ from src.authentication.models import (
     RefreshToken, 
     EmailConfirmationToken
 )
+# Importar modelos de todos los módulos para que Alembic los vea
+from src.finance.models import GastoOperativo, CategoriaGasto
+from src.operations.models import (
+    RegistroStock, Evento, EventoReceta, EventoProducto,
+    ConteoInventario, ConteoItem, Transferencia
+)
+from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega
+from src.sales.models import CategoriaReceta, Receta, RecetaIngrediente, VentaReceta
+from src.purchases.models import Proveedor, Compra, CompraItem
 
 # --- CONFIGURACIÓN DE LOGGING Y ENGINE ---
 current_settings = get_settings()

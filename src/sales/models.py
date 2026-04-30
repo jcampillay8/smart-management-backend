@@ -30,6 +30,9 @@ class Receta(BaseModel):
         ForeignKey(f"{settings.DB_SCHEMA}.categorias_recetas.id", ondelete="SET NULL"),
         nullable=True
     )
+    
+    # Nuevo campo para Ingeniería de Menú (Vista 2)
+    costo_total: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0, server_default=text("0.0"))
 
     # Relación uno-a-muchos con ingredientes
     ingredientes: Mapped[List["RecetaIngrediente"]] = relationship(
