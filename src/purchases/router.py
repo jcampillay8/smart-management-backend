@@ -4,6 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.database import get_async_session
 from src.dependencies import get_current_user
@@ -52,15 +53,16 @@ async def create_purchase(
                 db.add(new_pb)
 
     await db.commit()
-    await db.refresh(db_purchase)
-    return db_purchase
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == db_purchase.id)
+    result = await db.execute(stmt)
+    return result.scalar_one()
 
 @router.get("/", response_model=List[schemas.Compra])
 async def list_purchases(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).order_by(models.Compra.fecha.desc())
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).order_by(models.Compra.fecha.desc())
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -70,7 +72,7 @@ async def get_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == purchase_id)
     result = await db.execute(stmt)
     db_purchase = result.scalar_one_or_none()
     if not db_purchase:
@@ -84,7 +86,7 @@ async def update_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == purchase_id)
     result = await db.execute(stmt)
     db_purchase = result.scalar_one_or_none()
     if not db_purchase:
@@ -113,7 +115,7 @@ async def cancel_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == purchase_id)
     result = await db.execute(stmt)
     db_purchase = result.scalar_one_or_none()
     if not db_purchase:
@@ -130,7 +132,7 @@ async def restore_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == purchase_id)
     result = await db.execute(stmt)
     db_purchase = result.scalar_one_or_none()
     if not db_purchase:
@@ -148,7 +150,7 @@ async def mark_pedido(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == purchase_id)
     result = await db.execute(stmt)
     db_purchase = result.scalar_one_or_none()
     if not db_purchase:
@@ -165,7 +167,7 @@ async def receive_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    stmt = select(models.Compra).where(models.Compra.id == purchase_id)
+    stmt = select(models.Compra).options(selectinload(models.Compra.items)).where(models.Compra.id == purchase_id)
     result = await db.execute(stmt)
     db_purchase = result.scalar_one_or_none()
     if not db_purchase:
