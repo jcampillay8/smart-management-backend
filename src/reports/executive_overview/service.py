@@ -148,6 +148,45 @@ class ExecutiveOverviewService:
             
         return costo_ventas / promedio_inventario
 
+    async def get_resumen_general(
+        self, 
+        bodega_id: Optional[str] = None,
+        fecha_inicio: Optional[date] = None,
+        fecha_fin: Optional[date] = None
+    ) -> Dict:
+        """Endpoint principal: Combina todos los bloques del resumen ejecutivo"""
+        if not fecha_inicio:
+            fecha_inicio = date.today() - timedelta(days=30)
+        if not fecha_fin:
+            fecha_fin = date.today()
+        
+        # Bloque 1: Resumen General
+        valor_total = await self.get_valor_total_inventario(bodega_id)
+        porcentaje_merma = await self.get_porcentaje_merma(fecha_inicio, fecha_fin)
+        stock_unidades = await self.get_stock_total_unidades()
+        
+        # Bloque 2: Visión Financiera
+        total_compras = await self.get_compras_periodo(fecha_inicio, fecha_fin)
+        total_ventas = await self.get_ventas_periodo(fecha_inicio, fecha_fin)
+        
+        # Bloque 3: Control de Pérdidas (Top 5)
+        top_mermas = await self.get_top_mermas_productos(limit=5)
+        
+        # Bloque 4: Operación y Eficiencia
+        rotacion_promedio = await self.get_rotacion_promedio_general()
+        productos_bajo_stock = await self.get_productos_bajo_stock()
+        
+        return {
+            'valor_total_inventario': round(valor_total, 2),
+            'porcentaje_merma': round(porcentaje_merma, 2),
+            'stock_total_unidades': round(stock_unidades, 2),
+            'total_compras_periodo': round(total_compras, 2),
+            'total_ventas_periodo': round(total_ventas, 2),
+            'top_mermas_productos': top_mermas,
+            'rotacion_promedio_general': round(rotacion_promedio, 2),
+            'productos_bajo_stock': productos_bajo_stock
+        }
+
     async def get_stock_total_unidades(self) -> float:
         """Total de unidades en inventario"""
         query = select(func.sum(ProductoBodega.stock_actual))

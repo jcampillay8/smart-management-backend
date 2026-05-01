@@ -11,6 +11,7 @@ from src.settings.router import settings_router
 from src.purchases.router import router as purchases_router
 from src.storage.router import router as storage_router
 from src.ai_management.router import router as ai_router
+from src.reports.router import router as reports_router
 
 routers = [
     auth_router,
@@ -24,5 +25,6 @@ routers = [
     settings_router,
     purchases_router,
     storage_router,
-    ai_router
+    ai_router,
+    reports_router
 ]

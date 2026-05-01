@@ -1,7 +1,7 @@
 # src/reports/operational_efficiency/service.py
 from datetime import date, timedelta
 from typing import List, Dict, Optional
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import async_session_maker
@@ -151,9 +151,9 @@ class OperationalEfficiencyService:
             for row in result.all()
         ]
 
-    async def get_alertas_punto_pedido(self) -> List[Dict]:
+    async def get_alertas_punto_pedido(self, margen_cercania: float = 0.2) -> List[Dict]:
         """
-        3. Cálculo de punto de pedido y alertas
+        3. Productos cerca del punto de pedido (por debajo o dentro del margen de cercanía)
         """
         # Obtener productos con proveedor y tiempo de entrega
         query = (
@@ -193,7 +193,8 @@ class OperationalEfficiencyService:
             punto_pedido = calcular_punto_pedido(demanda_diaria, tiempo_entrega, stock_seguridad)
             diferencia = float(row.stock_actual or 0) - punto_pedido
             
-            if diferencia < 0:  # Está por debajo del punto de pedido
+            # Alerta si está por debajo O dentro del margen de cercanía (por defecto 20% arriba)
+            if diferencia < (punto_pedido * margen_cercania):
                 alertas.append({
                     'producto_id': str(row.id),
                     'nombre': row.nombre,

@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 from typing import List, Dict
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import joinedload
+# from sqlalchemy.orm import joinedload  # Pendiente si se necesita carga eager
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import async_session_maker
@@ -18,7 +18,8 @@ class LossControlService:
     async def get_mermas_by_motivo(
         self, 
         fecha_inicio: date = None, 
-        fecha_fin: date = None
+        fecha_fin: date = None,
+        bodega_id: str = None
     ) -> List[Dict]:
         """1. Agregación de mermas por motivo para gráfico de torta"""
         query = (
@@ -39,6 +40,8 @@ class LossControlService:
             query = query.where(RegistroStock.fecha_recuento >= fecha_inicio)
         if fecha_fin:
             query = query.where(RegistroStock.fecha_recuento <= fecha_fin)
+        if bodega_id:
+            query = query.where(RegistroStock.bodega_id == bodega_id)
             
         result = await self.session.execute(query)
         rows = result.all()
@@ -62,7 +65,8 @@ class LossControlService:
         self, 
         limit: int = 10,
         fecha_inicio: date = None,
-        fecha_fin: date = None
+        fecha_fin: date = None,
+        bodega_id: str = None
     ) -> List[Dict]:
         """2. Agregación de mermas por producto (Top N)"""
         query = (
@@ -89,6 +93,8 @@ class LossControlService:
             query = query.where(RegistroStock.fecha_recuento >= fecha_inicio)
         if fecha_fin:
             query = query.where(RegistroStock.fecha_recuento <= fecha_fin)
+        if bodega_id:
+            query = query.where(RegistroStock.bodega_id == bodega_id)
             
         result = await self.session.execute(query)
         rows = result.all()
@@ -107,7 +113,8 @@ class LossControlService:
         self, 
         dias_historico: int = 90,
         dias_actual: int = 7,
-        threshold_desviacion: float = 2.0
+        threshold_desviacion: float = 2.0,
+        bodega_id: str = None
     ) -> List[Dict]:
         """
         3. Detección de anomalías: 
@@ -137,6 +144,9 @@ class LossControlService:
             .group_by(RegistroStock.producto_id, Producto.nombre)
         )
         
+        if bodega_id:
+            query_hist = query_hist.where(RegistroStock.bodega_id == bodega_id)
+            
         result_hist = await self.session.execute(query_hist)
         hist_data = {str(row.producto_id): row for row in result_hist.all()}
         
@@ -157,6 +167,9 @@ class LossControlService:
             )
             .group_by(RegistroStock.producto_id, Producto.nombre)
         )
+        
+        if bodega_id:
+            query_actual = query_actual.where(RegistroStock.bodega_id == bodega_id)
         
         result_actual = await self.session.execute(query_actual)
         anomalias = []
