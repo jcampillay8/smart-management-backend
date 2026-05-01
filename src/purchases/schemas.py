@@ -8,6 +8,7 @@ class CompraItemBase(BaseModel):
     producto_id: uuid.UUID
     bodega_id: Optional[uuid.UUID] = None
     cantidad: float
+    cantidad_pedida: float = 0.0
     precio_unitario: float
 
 class CompraItemCreate(CompraItemBase):

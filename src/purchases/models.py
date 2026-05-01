@@ -57,7 +57,8 @@ class CompraItem(BaseModel):
     compra_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.compras.id", ondelete="CASCADE"))
     producto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     bodega_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)  # cantidad recibida
+    cantidad_pedida: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, server_default="0.0")  # cantidad solicitada
     precio_unitario: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
 
     compra: Mapped["Compra"] = relationship(back_populates="items")
