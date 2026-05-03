@@ -33,7 +33,8 @@ class RecetaCreate(RecetaBase):
 
 class RecetaOut(RecetaBase):
     id: UUID
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     ingredientes: List[RecetaIngredienteOut]
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,5 +51,6 @@ class VentaRecetaCreate(VentaRecetaBase):
 class VentaRecetaOut(VentaRecetaBase):
     id: UUID
     usuario_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)

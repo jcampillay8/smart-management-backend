@@ -21,7 +21,7 @@ async def create_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     return await service.create_purchase(
         purchase.model_dump(),
         [item.model_dump() for item in purchase.items],
@@ -33,7 +33,7 @@ async def list_purchases(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     return await service.list_purchases()
 
 @router.get("/{purchase_id}", response_model=schemas.Compra)
@@ -42,7 +42,7 @@ async def get_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     result = await service.get_purchase(str(purchase_id))
     if not result:
         raise HTTPException(status_code=404, detail="Purchase not found")
@@ -55,7 +55,7 @@ async def update_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     update_data = {k: v for k, v in purchase_update.model_dump(exclude_unset=True).items()}
     result = await service.update_purchase(str(purchase_id), update_data)
     if not result:
@@ -68,7 +68,7 @@ async def cancel_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     result = await service.cancel_purchase(str(purchase_id))
     if not result:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -80,7 +80,7 @@ async def restore_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     result = await service.restore_purchase(str(purchase_id))
     if not result:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -92,7 +92,7 @@ async def mark_pedido(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     result = await service.mark_pedido(str(purchase_id))
     if not result:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -104,7 +104,7 @@ async def receive_purchase(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     result = await service.mark_received(str(purchase_id))
     if not result:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -118,7 +118,7 @@ async def get_fill_rate(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     return await service.get_fill_rate_by_proveedor(fecha_inicio, fecha_fin)
 
 @router.get("/price-variation", tags=["Supplier Performance"])
@@ -127,7 +127,7 @@ async def get_price_variation(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     return await service.get_variacion_precios_by_proveedor(dias_atras)
 
 @router.get("/upcoming-payments", tags=["Supplier Performance"])
@@ -136,7 +136,7 @@ async def get_upcoming_payments(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    service = get_purchase_service(db)
+    service = await get_purchase_service(db)
     return await service.get_calendario_pagos(dias_adelante)
 
 # AI Invoice Scan

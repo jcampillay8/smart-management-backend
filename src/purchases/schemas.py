@@ -16,7 +16,8 @@ class CompraItemCreate(CompraItemBase):
 
 class CompraItem(CompraItemBase):
     id: uuid.UUID
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 class CompraBase(BaseModel):
@@ -43,9 +44,10 @@ class CompraUpdate(BaseModel):
 class Compra(CompraBase):
     id: uuid.UUID
     usuario_id: int
-    created_at: datetime
-    updated_at: datetime
-    items: List[CompraItem]
+    items: List[CompraItem] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 class ScanInvoiceRequest(BaseModel):
@@ -84,6 +86,6 @@ class ProveedorUpdate(BaseModel):
 
 class ProveedorOut(ProveedorBase):
     id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)

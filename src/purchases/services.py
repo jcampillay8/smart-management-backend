@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from typing import List, Dict
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.database import async_session_maker
 from src.config import settings

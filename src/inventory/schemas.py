@@ -15,6 +15,8 @@ class CategoriaCreate(CategoriaBase):
 
 class CategoriaOut(CategoriaBase):
     id: UUID
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 # ==========================================
@@ -29,6 +31,8 @@ class BodegaCreate(BodegaBase):
 
 class BodegaOut(BodegaBase):
     id: UUID
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 # ==========================================
@@ -44,6 +48,8 @@ class ProductoBodegaCreate(ProductoBodegaBase):
 class ProductoBodegaOut(ProductoBodegaBase):
     id: UUID
     stock_actual: float = 0.0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 # ==========================================
@@ -66,6 +72,8 @@ class ProductoOut(ProductoBase):
     id: UUID
     bodegas_config: List[ProductoBodegaOut] = []
     categoria: Optional[CategoriaOut] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,7 +100,8 @@ class RegistroStockOut(BaseModel):
     tipo_movimiento: str
     fecha_recuento: date
     fecha_vencimiento: Optional[date]
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     usuario_id: int
     motivo_merma: Optional[str] = None
     descripcion_merma: Optional[str] = None 
