@@ -23,8 +23,14 @@ def calcular_punto_pedido(
 ) -> float:
     """
     Fórmula: Punto_Pedido = (Demanda_Diaria * Tiempo_Entrega) + Stock_Seguridad
+    Corregido para manejar tipos Decimal de la base de datos.
     """
-    return (demanda_diaria * tiempo_entrega_dias) + stock_seguridad
+    # Forzamos la conversión a float para evitar el TypeError con Decimal
+    dd = float(demanda_diaria)
+    te = float(tiempo_entrega_dias)
+    ss = float(stock_seguridad) if stock_seguridad is not None else 0.0
+    
+    return (dd * te) + ss
 
 def calcular_demanda_diaria(
     ventas_periodo: float,

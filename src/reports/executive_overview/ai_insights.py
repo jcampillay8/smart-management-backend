@@ -7,6 +7,7 @@ from src.reports.executive_overview.service import get_executive_overview_servic
 from src.reports.loss_control.service import get_loss_control_service
 from src.operations.models import RegistroStock, TipoMovimiento
 
+
 async def generate_insights(db: AsyncSession) -> List[Dict]:
     """
     Genera insights prescriptivos basados en los datos del Executive Overview.
@@ -15,22 +16,26 @@ async def generate_insights(db: AsyncSession) -> List[Dict]:
     insights = []
     
     # Obtener servicios
-    exec_service: ExecutiveOverviewService = get_executive_overview_service(db)
-    loss_service: LossControlService = get_loss_control_service(db)
+    exec_service = get_executive_overview_service(db)
+    loss_service = get_loss_control_service(db)
     
     # 1. Insight de Sobrestock
     stock_data = await exec_service.get_stock_total_unidades()
-    # Calcular días de inventario promedio (simplificado)
-    query_ventas = select(func.sum(RegistroStock.cantidad)).where(
-        RegistroStock.tipo_movimiento.in_([TipMovimiento.CONSUMO, TipoMovimiento.MERMA])
+    query_ventas = (
+        select(func.sum(RegistroStock.cantidad))
+        .where(
+            RegistroStock.tipo_movimiento.in_([
+                TipoMovimiento.CONSUMO, 
+                TipoMovimiento.MERMA
+            ])
+        )
     )
     result_ventas = await db.execute(query_ventas)
-    ventas_diarias = float(result_ventas.scalar() or 0.0) / 30  # promedio diario
+    ventas_diarias = float(result_ventas.scalar() or 0.0) / 30
     
     if ventas_diarias > 0:
         dias_inventario = stock_data / ventas_diarias
         if dias_inventario > 60:
-            # Calcular monto liberable (simplificado: 50% del valor del stock excedente)
             valor_total = await exec_service.get_valor_total_inventario()
             monto_liberable = (dias_inventario - 30) / dias_inventario * valor_total * 0.5
             insights.append({
@@ -39,22 +44,21 @@ async def generate_insights(db: AsyncSession) -> List[Dict]:
                 'impacto_estimado': round(monto_liberable, 2)
             })
     
-    # 2. Insight de Fuga de Dinero (Mermas anómalas)
+    # 2. Insight de Fuga de Dinero
     anomalias = await loss_service.detect_anomalias(dias_historico=90, dias_actual=7)
-    for anomalia in anomalias[:3]:  # Top 3 anomalías
+    for anomalia in anomalias[:3]:
         insights.append({
             'tipo': 'fuga_dinero',
             'mensaje': f"La merma de '{anomalia['nombre']}' es un {anomalia['diferencia_porcentual']:.1f}% superior al promedio. Revisa procesos de porcionamiento en cocina.",
-            'impacto_estimado': round(anomalia['merma_actual'] * 10, 2)  # Simplificado: $10 por unidad de merma
+            'impacto_estimado': round(anomalia['merma_actual'] * 10, 2)
         })
     
-    # 3. Insight de Oportunidad (simplificado: productos con merma baja y ventas altas)
+    # 3. Insight de Oportunidad
     top_mermas = await exec_service.get_top_mermas_productos(limit=10)
     if top_mermas:
-        # Buscar producto con merma muy baja (primer elemento de la lista invertida)
         producto_oportunidad = None
         for p in reversed(top_mermas):
-            if p['cantidad_merma'] < 5:  # Merma baja
+            if p['cantidad_merma'] < 5:
                 producto_oportunidad = p
                 break
         
@@ -65,4 +69,38 @@ async def generate_insights(db: AsyncSession) -> List[Dict]:
                 'impacto_estimado': None
             })
     
-    return insights[:5]  # Máximo 5 insights
+    # 4. Conectar con módulo de IA para generar lenguaje natural
+    insights = await enhance_with_ai(db, insights)
+    
+    return insights[:5]
+
+
+async def enhance_with_ai(db: AsyncSession, insights: List[Dict]) -> List[Dict]:
+    """
+    Usa el módulo de IA existente para mejorar la redacción de los insights.
+    """
+    if not insights:
+        return insights
+    
+    prompt = "Mejora la redacción de estos insights empresariales para que suenen más profesionales y accionables:\n"
+    for i, insight in enumerate(insights, 1):
+        prompt += f"{i}. {insight['mensaje']}\n"
+    
+    try:
+        from src.ai_management.services import ask_oppy_ai
+        ai_response = await ask_oppy_ai(
+            db=db,
+            messages=[{"role": "user", "content": prompt}],
+            user_id=1,  # TODO: Obtener user_id real
+            caller="ai_insights"
+        )
+        
+        # Si la IA responde, actualizar mensajes
+        if ai_response and isinstance(ai_response, str):
+            # Por ahora mantenemos los mensajes originales
+            # En el futuro se puede parsear la respuesta de la IA
+            pass
+    except Exception as e:
+        print(f"Error al conectar con IA: {e}")
+    
+    return insights

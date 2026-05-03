@@ -46,19 +46,25 @@ class LossControlService:
         result = await self.session.execute(query)
         rows = result.all()
         
-        # Calcular total para porcentajes
-        total_general = sum(float(row.total) for row in rows)
+        # 1. Calcular total general usando valor absoluto para porcentajes correctos
+        total_general = sum(abs(float(row.total)) for row in rows)
         
         mermas = []
         for row in rows:
-            cantidad = float(row.total)
+            # 2. Aplicar abs() para eliminar signos negativos técnicos
+            cantidad = abs(float(row.total))
+            
+            # 3. Calcular porcentaje sobre la base absoluta
             porcentaje = (cantidad / total_general * 100) if total_general > 0 else 0
+            
             mermas.append({
-                'motivo': str(row.motivo_merma) if row.motivo_merma else 'sin_motivo',
+                # 4. Limpiar el nombre del motivo (ej: "CADUCIDAD" en lugar de "MotivoMerma.CADUCIDAD")
+                'motivo': str(row.motivo_merma).split('.')[-1] if row.motivo_merma else 'sin_motivo',
                 'cantidad_total': cantidad,
                 'porcentaje': round(porcentaje, 2)
             })
         
+        # 5. Ordenar por cantidad de mayor a menor para que el gráfico sea más legible
         return sorted(mermas, key=lambda x: x['cantidad_total'], reverse=True)
 
     async def get_top_mermas_by_producto(
@@ -178,31 +184,41 @@ class LossControlService:
             p_id = str(row.producto_id)
             if p_id in hist_data:
                 hist_row = hist_data[p_id]
-                promedio = float(hist_row.promedio or 0)
-                desviacion = float(hist_row.desviacion or 0)
-                merma_actual = float(row.merma_actual)
+                promedio = abs(float(hist_row.promedio or 0))
+                # Capturamos la desviación asegurando que no sea None
+                desviacion = abs(float(hist_row.desviacion or 0))
+                merma_actual = abs(float(row.merma_actual))
                 
-                # Calcular diferencia porcentual
+                # 1. Mejora: Diferencia porcentual con protección contra división por cero
                 if promedio > 0:
                     diferencia_porcentual = ((merma_actual - promedio) / promedio) * 100
                 else:
-                    diferencia_porcentual = 100 if merma_actual > 0 else 0
+                    diferencia_porcentual = 100.0 if merma_actual > 0 else 0.0
                 
-                # Detectar anomalía si supera el umbral (promedio + threshold * desviación)
-                umbral = promedio + (threshold_desviacion * desviacion)
+                # 2. Mejora: Lógica de Umbral Inteligente
+                # Si la desviación es 0 (pocos datos), usamos un umbral basado en el promedio 
+                # para que el sistema no sea "ciego" ante saltos masivos.
+                if desviacion == 0:
+                    # Si no hay desviación, alertar si la merma actual supera, por ejemplo, 
+                    # 1.5 veces el promedio histórico (ajustable).
+                    umbral = promedio * 1.5 
+                else:
+                    umbral = promedio + (threshold_desviacion * desviacion)
                 
+                # 3. Detectar anomalía
                 if merma_actual > umbral:
                     anomalias.append({
                         'producto_id': p_id,
                         'nombre': row.nombre,
-                        'merma_actual': merma_actual,
-                        'promedio_historico': promedio,
-                        'desviacion': desviacion,
-                        'diferencia_porcentual': round(diferencia_porcentual, 2)
+                        'merma_actual': round(merma_actual, 2),
+                        'promedio_historico': round(promedio, 2),
+                        'desviacion': round(desviacion, 2),
+                        'diferencia_porcentual': round(diferencia_porcentual, 2),
+                        'mensaje': "Salto brusco sin historial de variabilidad" if desviacion == 0 else "Desviación estadística crítica"
                     })
         
         return sorted(anomalias, key=lambda x: x['diferencia_porcentual'], reverse=True)
 
 # Función factory
-async def get_loss_control_service(session: AsyncSession) -> LossControlService:
+def get_loss_control_service(session: AsyncSession) -> LossControlService:
     return LossControlService(session)

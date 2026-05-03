@@ -2,6 +2,7 @@
 from datetime import date, timedelta
 from typing import List, Dict, Optional
 from sqlalchemy import select, func, and_, or_
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import async_session_maker
@@ -48,7 +49,7 @@ class OperationalEfficiencyService:
             .where(
                 and_(
                     RegistroStock.fecha_recuento.between(fecha_inicio, fecha_fin),
-                    RegistroStock.tipo_movimiento.in_([TipMovimiento.CONSUMO, TipoMovimiento.MERMA])
+                    RegistroStock.tipo_movimiento.in_([TipoMovimiento.CONSUMO, TipoMovimiento.MERMA])
                 )
             )
             .group_by(RegistroStock.producto_id, Producto.nombre)
@@ -82,24 +83,39 @@ class OperationalEfficiencyService:
             p_id = str(row.producto_id)
             if p_id in ventas_dict:
                 venta_row = ventas_dict[p_id]
-                costo_ventas = float(venta_row.total_salidas) * float(row.costo_promedio or 0)
+                
+                # 1. CORRECCIÓN DE SIGNOS: Usamos abs() para evitar costos negativos
+                # Multiplicamos unidades (absolutas) por el costo unitario (absoluto)
+                total_unidades_salida = abs(float(venta_row.total_salidas or 0))
+                costo_unitario = abs(float(row.costo_promedio or 0))
+                costo_ventas = total_unidades_salida * costo_unitario
+                
+                # 2. CORRECCIÓN DE ESCALA: 
+                # Para que la rotación sea coherente (veces que el stock rotó), 
+                # el stock promedio también debe estar valorizado en DINERO.
+                stock_promedio_unidades = abs(float(row.promedio_stock or 0))
+                valor_inventario_promedio = stock_promedio_unidades * costo_unitario
+                
                 demanda_diaria = calcular_demanda_diaria(costo_ventas, dias_periodo)
                 
+                # 3. CÁLCULO DE ROTACIÓN:
+                # Ahora pasamos (Dinero / Dinero) o podrías pasar (Unidades / Unidades)
+                # pero nunca mezclados. Usamos valorizado para métricas financieras.
                 rotacion = calcular_rotacion_inventario(
                     costo_ventas,
-                    float(row.promedio_stock or 0),
-                    float(row.promedio_stock or 0)
+                    valor_inventario_promedio,
+                    valor_inventario_promedio
                 )
                 
                 rotacion_list.append({
                     'producto_id': p_id,
                     'nombre': venta_row.nombre,
                     'rotacion': round(rotacion, 2),
-                    'stock_promedio': float(row.promedio_stock or 0),
-                    'costo_ventas': costo_ventas,
-                    'demanda_diaria': demanda_diaria,
+                    'stock_promedio': stock_promedio_unidades,
+                    'costo_ventas': round(costo_ventas, 2),
+                    'demanda_diaria': round(demanda_diaria, 2),
                     'dias_inventario': calcular_dias_inventario(
-                        float(row.promedio_stock or 0), demanda_diaria
+                        stock_promedio_unidades, demanda_diaria
                     )
                 })
         
@@ -112,8 +128,12 @@ class OperationalEfficiencyService:
         bodega_id: Optional[str] = None
     ) -> List[Dict]:
         """
-        2. Reporte de transferencias inter-bodegas
+        2. Reporte de transferencias inter-bodegas corregido
         """
+        # 1. DEFINIR LOS ALIAS EXPLÍCITAMENTE
+        BodegaOrigen = aliased(Bodega, name="bodega_origen_alias")
+        BodegaDestino = aliased(Bodega, name="bodega_destino_alias")
+
         query = (
             select(
                 Transferencia.id,
@@ -125,16 +145,23 @@ class OperationalEfficiencyService:
                 Transferencia.motivo
             )
             .join(Producto, Producto.id == Transferencia.producto_id)
-            .join(Bodega, Bodega.id == Transferencia.bodega_origen_id, aliased=True)
-            .join(Bodega, Bodega.id == Transferencia.bodega_destino_id, aliased=True)
-            .where(Transferencia.fecha.between(fecha_inicio or date.today() - timedelta(days=30), 
-                                       fecha_fin or date.today()))
+            # 2. USAR LOS ALIAS DEFINIDOS
+            .join(BodegaOrigen, BodegaOrigen.id == Transferencia.bodega_origen_id)
+            .join(BodegaDestino, BodegaDestino.id == Transferencia.bodega_destino_id)
+            .where(
+                Transferencia.fecha.between(
+                    fecha_inicio or date.today() - timedelta(days=30), 
+                    fecha_fin or date.today()
+                )
+            )
         )
         
         if bodega_id:
             query = query.where(
-                or_(Transferencia.bodega_origen_id == bodega_id, 
-                     Transferencia.bodega_destino_id == bodega_id)
+                or_(
+                    Transferencia.bodega_origen_id == bodega_id, 
+                    Transferencia.bodega_destino_id == bodega_id
+                )
             )
             
         result = await self.session.execute(query)
@@ -179,7 +206,7 @@ class OperationalEfficiencyService:
                     and_(
                         RegistroStock.producto_id == row.id,
                         RegistroStock.fecha_recuento >= date.today() - timedelta(days=30),
-                        RegistroStock.tipo_movimiento.in_([TipMovimiento.CONSUMO, TipoMovimiento.MERMA])
+                        RegistroStock.tipo_movimiento.in_([TipoMovimiento.CONSUMO, TipoMovimiento.MERMA])
                     )
                 )
             )
@@ -211,7 +238,7 @@ class OperationalEfficiencyService:
             select(func.sum(RegistroStock.cantidad * Producto.costo_unitario))
             .join(Producto, Producto.id == RegistroStock.producto_id)
             .where(
-                RegistroStock.tipo_movimiento.in_([TipMovimiento.CONSUMO, TipoMovimiento.MERMA])
+                RegistroStock.tipo_movimiento.in_([TipoMovimiento.CONSUMO, TipoMovimiento.MERMA])
             )
         )
         result_ventas = await self.session.execute(query)
@@ -224,5 +251,5 @@ class OperationalEfficiencyService:
         return calcular_rotacion_inventario(costo_ventas, promedio_stock, promedio_stock)
 
 # Función factory
-async def get_operational_efficiency_service(session: AsyncSession) -> OperationalEfficiencyService:
+def get_operational_efficiency_service(session: AsyncSession) -> OperationalEfficiencyService:
     return OperationalEfficiencyService(session)

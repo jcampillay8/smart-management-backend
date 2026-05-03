@@ -102,7 +102,7 @@ async def mark_pedido(
 async def receive_purchase(
     purchase_id: uuid.UUID,
     db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user")
+    current_user: User = Depends(get_current_user)
 ):
     service = get_purchase_service(db)
     result = await service.mark_received(str(purchase_id))
@@ -116,7 +116,7 @@ async def get_fill_rate(
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user")
+    current_user: User = Depends(get_current_user)
 ):
     service = get_purchase_service(db)
     return await service.get_fill_rate_by_proveedor(fecha_inicio, fecha_fin)
@@ -125,7 +125,7 @@ async def get_fill_rate(
 async def get_price_variation(
     dias_atras: int = 90,
     db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user")
+    current_user: User = Depends(get_current_user)
 ):
     service = get_purchase_service(db)
     return await service.get_variacion_precios_by_proveedor(dias_atras)
@@ -133,8 +133,8 @@ async def get_price_variation(
 @router.get("/upcoming-payments", tags=["Supplier Performance"])
 async def get_upcoming_payments(
     dias_adelante: int = 7,
-    db: AsyncSession = Depends(get_async_session"),
-    current_user: User = Depends(get_current_user")
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     service = get_purchase_service(db)
     return await service.get_calendario_pagos(dias_adelante)
@@ -143,7 +143,7 @@ async def get_upcoming_payments(
 @router.post("/scan-invoice")
 async def scan_invoice(
     request: schemas.ScanInvoiceRequest,
-    current_user: User = Depends(get_current_user")
+    current_user: User = Depends(get_current_user)
 ):
     return await scan_invoice_ai(request.imageBase64, request.mimeType)
 
@@ -152,8 +152,8 @@ async def scan_invoice(
 # ======================
 @router.get("/suppliers/", response_model=List[schemas.ProveedorOut])
 async def list_proveedores(
-    db: AsyncSession = Depends(get_async_session"),
-    current_user: User = Depends(get_current_user")
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Lista todos los proveedores ordenados por nombre de empresa"""
     stmt = select(models.Proveedor).order_by(models.Proveedor.nombre_empresa)
@@ -163,8 +163,8 @@ async def list_proveedores(
 @router.post("/suppliers/", response_model=schemas.ProveedorOut, status_code=status.HTTP_201_CREATED)
 async def create_proveedor(
     proveedor: schemas.ProveedorCreate,
-    db: AsyncSession = Depends(get_async_session"),
-    current_user: User = Depends(get_current_user")
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Crea un nuevo proveedor"""
     db_proveedor = models.Proveedor(**proveedor.model_dump())
@@ -176,8 +176,8 @@ async def create_proveedor(
 @router.get("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
 async def get_proveedor(
     proveedor_id: uuid.UUID,
-    db: AsyncSession = Depends(get_async_session"),
-    current_user: User = Depends(get_current_user")
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Obtiene un proveedor por su ID"""
     stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
@@ -191,8 +191,8 @@ async def get_proveedor(
 async def update_proveedor(
     proveedor_id: uuid.UUID,
     proveedor_update: schemas.ProveedorUpdate,
-    db: AsyncSession = Depends(get_async_session"),
-    current_user: User = Depends(get_current_user")
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Actualiza un proveedor existente"""
     stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
@@ -212,8 +212,8 @@ async def update_proveedor(
 @router.delete("/suppliers/{proveedor_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_proveedor(
     proveedor_id: uuid.UUID,
-    db: AsyncSession = Depends(get_async_session"),
-    current_user: User = Depends(get_current_user")
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Elimina un proveedor"""
     stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)

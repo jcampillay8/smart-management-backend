@@ -1,5 +1,5 @@
 # src/reports/executive_overview/router.py
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession

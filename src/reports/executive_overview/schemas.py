@@ -1,7 +1,7 @@
 # src/reports/executive_overview/schemas.py
 from typing import List, Optional
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ExecutiveOverviewResponse(BaseModel):
     # Bloque 1: Resumen General
@@ -17,7 +17,7 @@ class ExecutiveOverviewResponse(BaseModel):
     top_mermas_productos: List["ProductMerma"]
     
     # Bloque 4: Operación y Eficiencia
-    rotacion_promedio: float
+    rotacion_promedio: float = Field(validation_alias='rotacion_promedio_general')
     productos_bajo_stock: List["ProductoStock"]
 
 class ProductMerma(BaseModel):

@@ -1,7 +1,7 @@
 # src/reports/executive_overview/service.py
 from datetime import date, timedelta
 from typing import List, Optional, Dict
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import async_session_maker
@@ -148,6 +148,12 @@ class ExecutiveOverviewService:
             
         return costo_ventas / promedio_inventario
 
+    async def get_rotacion_promedio_general(self) -> float:
+        """Calcula la rotación promedio general usando los últimos 30 días"""
+        fecha_fin = date.today()
+        fecha_inicio = fecha_fin - timedelta(days=30)
+        return await self.get_rotacion_inventario(fecha_inicio, fecha_fin)
+
     async def get_resumen_general(
         self, 
         bodega_id: Optional[str] = None,
@@ -256,6 +262,42 @@ class ExecutiveOverviewService:
             for row in rows
         ]
 
+    async def get_mermas_by_motivo(
+        self, 
+        fecha_inicio: Optional[date] = None, 
+        fecha_fin: Optional[date] = None
+    ) -> List[Dict]:
+        """Agregación de mermas por motivo para gráfico de torta"""
+        query = (
+            select(
+                RegistroStock.motivo_merma,
+                func.sum(RegistroStock.cantidad).label('total_cantidad')
+            )
+            .where(
+                and_(
+                    RegistroStock.tipo_movimiento == TipoMovimiento.MERMA,
+                    RegistroStock.motivo_merma.isnot(None)
+                )
+            )
+            .group_by(RegistroStock.motivo_merma)
+        )
+
+        if fecha_inicio:
+            query = query.where(RegistroStock.fecha_recuento >= fecha_inicio)
+        if fecha_fin:
+            query = query.where(RegistroStock.fecha_recuento <= fecha_fin)
+
+        result = await self.session.execute(query)
+        rows = result.all()
+
+        return [
+            {
+                "motivo": str(row.motivo_merma).split('.')[-1], # Limpia "MotivoMerma.CADUCIDAD" a solo "CADUCIDAD"
+                "cantidad": abs(float(row.total_cantidad)) # <--- USA ABS() AQUÍ
+            }
+            for row in rows
+        ]
+
 # Función factory para obtener el servicio
-async def get_executive_overview_service(session: AsyncSession) -> ExecutiveOverviewService:
+def get_executive_overview_service(session: AsyncSession) -> ExecutiveOverviewService:
     return ExecutiveOverviewService(session)

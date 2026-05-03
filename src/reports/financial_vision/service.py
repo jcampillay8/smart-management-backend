@@ -11,6 +11,8 @@ from src.sales.models import Receta, RecetaIngrediente, VentaReceta
 from src.inventory.models import Producto
 from src.finance.models import GastoOperativo, CategoriaGasto
 from src.purchases.models import CompraItem, Proveedor
+from src.purchases.models import Compra
+from src.finance.models import GastoOperativo
 
 class FinancialVisionService:
     def __init__(self, session: AsyncSession):
@@ -191,7 +193,12 @@ class FinancialVisionService:
         
         # Obtener productos con sus proveedores
         query = (
-            select(CompraItem.producto_id, Producto.nombre, Proveedor.nombre_empresa)
+            select(
+                CompraItem.producto_id, 
+                Producto.nombre, 
+                Proveedor.nombre_empresa,
+                CompraItem.precio_unitario  # <--- AGREGAR ESTA LÍNEA
+            )
             .join(Compra, Compra.id == CompraItem.compra_id)
             .join(Producto, Producto.id == CompraItem.producto_id)
             .outerjoin(Proveedor, Proveedor.id == Producto.proveedor_id)
@@ -235,5 +242,5 @@ class FinancialVisionService:
         return sorted(variaciones, key=lambda x: abs(x['porcentaje_cambio']), reverse=True)
 
 # Función factory
-async def get_financial_vision_service(session: AsyncSession) -> FinancialVisionService:
+def get_financial_vision_service(session: AsyncSession) -> FinancialVisionService:
     return FinancialVisionService(session)
