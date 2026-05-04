@@ -31,15 +31,16 @@ auth_router = APIRouter(tags=["Authentication"])
 
 def get_cookie_settings(request: Request):
     """Detecta entorno para ajustar políticas de seguridad de cookies."""
-    origin = request.headers.get("origin")
-    if origin == "http://localhost:5173" or settings.ENVIRONMENT == "development":
+    # Gracias al Proxy de Vite, en desarrollo operamos en modo Same-Origin.
+    if settings.ENVIRONMENT == "development":
+        # Same-Origin acepta Lax perfectamente sobre HTTP en móviles.
         return {"samesite": "lax", "secure": False}
     return {
-        "samesite": "none" if settings.ENVIRONMENT == "production" else "lax", 
-        "secure": settings.ENVIRONMENT == "production"
+        "samesite": "lax", # o 'none' si Front y Back están en distintos subdominios
+        "secure": True 
     }
 
-@auth_router.post("/login/", response_model=LoginResponseSchema)
+@auth_router.post("/login/", response_model=LoginResponseSchema, response_model_by_alias=True)
 async def login(
     response: Response,
     request: Request,

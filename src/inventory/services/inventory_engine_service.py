@@ -50,16 +50,10 @@ class InventoryEngineService:
         # Lógica de signos HORECA
         suman = ["entrada", "ajuste_positivo", "devolucion", "conteo", "recuento"]
         
-        # 4. Cálculo del Snapshot
+        # 4. Cálculo del Snapshot (Sumamos directamente porque StockService ya aplica el signo negativo a consumos/mermas)
         snapshot = (
-            df.with_columns(
-                pl.when(pl.col("tipo_movimiento").is_in(suman))
-                .then(pl.col("cantidad"))
-                .otherwise(-pl.col("cantidad"))
-                .alias("cantidad_neta")
-            )
-            .group_by(["producto_id", "bodega_id", "fecha_vencimiento"])
-            .agg(pl.col("cantidad_neta").sum().alias("stock_actual"))
+            df.group_by(["producto_id", "bodega_id", "fecha_vencimiento"])
+            .agg(pl.col("cantidad").sum().alias("stock_actual"))
             # Filtramos stock <= 0 (opcional, dependiendo de si quieres ver quiebres)
             .filter(pl.col("stock_actual") > 0)
             .sort(["producto_id", "fecha_vencimiento"])

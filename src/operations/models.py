@@ -16,6 +16,11 @@ class TipoMovimiento(str, enum.Enum):
     AJUSTE_POSITIVO = "ajuste_positivo"
     AJUSTE_NEGATIVO = "ajuste_negativo"
     TRANSFERENCIA = "transferencia"
+    COMPRA = "compra"
+    MODIFICACION = "modificacion"
+    ELIMINACION = "eliminacion"
+    REVERSION = "reversion"
+    REDO = "redo"
 
 class RegistroStock(BaseModel):
     __tablename__ = "registros_stock"
@@ -41,10 +46,19 @@ class RegistroStock(BaseModel):
     evento_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.eventos.id", ondelete="SET NULL"))
     transfer_id: Mapped[Optional[str]] = mapped_column(String(100))
 
+    # Columnas de auditoría y trazabilidad
+    cantidad_anterior: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    receta_consumo_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # agrupa ingredientes de una venta de receta
+    receta_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.recetas.id", ondelete="SET NULL"), nullable=True)
+    registro_origen_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)  # para registros tipo eliminacion
+    modificado_por: Mapped[Optional[int]] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    modificado_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # --- RELACIONES ---
     # Importante: Usamos strings para las rutas de los modelos para evitar importaciones circulares
     producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
-    usuario: Mapped["User"] = relationship("src.models.User")
+    usuario: Mapped["User"] = relationship("src.models.User", foreign_keys=[usuario_id])
+    editor: Mapped[Optional["User"]] = relationship("src.models.User", foreign_keys=[modificado_por])
     evento: Mapped[Optional["Evento"]] = relationship("Evento")
     
     # NUEVA RELACIÓN: Esto es lo que faltaba para el history_service
@@ -62,6 +76,9 @@ class Evento(BaseModel):
     usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id"))
     valor_publico: Mapped[Optional[float]] = mapped_column(Numeric(10, 2)) 
 
+    # El campo is_deleted no existe en la tabla eventos
+    is_deleted = None
+
     # Relación con los productos específicos del evento
     productos: Mapped[List["EventoProducto"]] = relationship(back_populates="evento", cascade="all, delete-orphan")
     recetas: Mapped[List["EventoReceta"]] = relationship(back_populates="evento", cascade="all, delete-orphan")
@@ -75,6 +92,9 @@ class EventoReceta(BaseModel):
     receta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.recetas.id", ondelete="CASCADE"))
     cantidad: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
 
+    # El campo is_deleted no existe en la tabla evento_recetas
+    is_deleted = None
+
     evento: Mapped["Evento"] = relationship(back_populates="recetas")
     receta: Mapped["Receta"] = relationship("src.sales.models.Receta")
 
@@ -87,6 +107,9 @@ class EventoProducto(BaseModel):
     producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.productos.id"))
     bodega_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id"))
     cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+
+    # El campo is_deleted no existe en la tabla evento_productos
+    is_deleted = None
 
     # Relaciones
     evento: Mapped["Evento"] = relationship(back_populates="productos")

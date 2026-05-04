@@ -50,6 +50,7 @@ class GlobalSettings(BaseSettings):
     # --- App / Front ---
     WEBSITE_URL: HttpUrl
     API_URL: HttpUrl
+    VITE_API_URL: HttpUrl
 
     # --- SMTP heredado (sigue por compatibilidad) ---
     MAIL_USERNAME: str

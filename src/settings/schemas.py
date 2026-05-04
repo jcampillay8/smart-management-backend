@@ -15,3 +15,23 @@ class ConfiguracionRestauranteUpdate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=200)
     logo_url: Optional[str] = None
     dias_alerta_vencimiento: float = Field(default=5.0, ge=0)
+
+class AreaOperativaBase(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=100)
+    bodega_consumo_id: UUID
+
+class AreaOperativaCreate(AreaOperativaBase):
+    bodegas_ids: list[UUID] = Field(default_factory=list)
+    usuarios_ids: list[int] = Field(default_factory=list)
+
+class AreaOperativaUpdate(AreaOperativaCreate):
+    pass
+
+class AreaOperativaOut(AreaOperativaBase):
+    id: UUID
+    
+    # Optional nested data, populated by the endpoint
+    bodegas_ids: list[UUID] = Field(default_factory=list)
+    usuarios_ids: list[int] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)

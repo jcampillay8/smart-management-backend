@@ -7,6 +7,7 @@ from uuid import UUID
 from typing import List
 
 from src.sales.models import Receta, RecetaIngrediente, VentaReceta
+from src.inventory.models import AreaOperativa
 from src.sales.schemas import RecetaCreate, VentaRecetaCreate
 from src.inventory.services.stock_service import StockService
 
@@ -43,7 +44,6 @@ class SalesService:
                 nuevo_ing = RecetaIngrediente(
                     receta_id=nueva_receta.id,
                     producto_id=ing.producto_id,
-                    bodega_id=ing.bodega_id,
                     cantidad=ing.cantidad
                 )
                 self.db.add(nuevo_ing)
@@ -71,7 +71,6 @@ class SalesService:
                 nuevo_ing = RecetaIngrediente(
                     receta_id=receta_id,
                     producto_id=ing.producto_id,
-                    bodega_id=ing.bodega_id,
                     cantidad=ing.cantidad
                 )
                 self.db.add(nuevo_ing)
@@ -107,11 +106,17 @@ class SalesService:
 
     async def register_sale(self, data: VentaRecetaCreate, user_id: int) -> VentaReceta:
         """
-        Registra una venta y descuenta stock de forma atómica.
+        Registra una venta y descuenta stock del área operativa seleccionada.
         """
         receta = await self.db.get(Receta, data.receta_id)
         if not receta:
             raise HTTPException(status_code=404, detail="Receta no encontrada")
+
+        area = await self.db.get(AreaOperativa, data.area_id)
+        if not area:
+            raise HTTPException(status_code=404, detail="Área operativa no encontrada")
+        
+        bodega_id = area.bodega_consumo_id
 
         try:
             # 1. Descontar stock de ingredientes
@@ -123,7 +128,7 @@ class SalesService:
                 cantidad_total = ing.cantidad * data.cantidad
                 await self.stock_service.consume_stock_fifo(
                     producto_id=ing.producto_id,
-                    bodega_id=ing.bodega_id,
+                    bodega_id=bodega_id,
                     cantidad_total=cantidad_total,
                     user_id=user_id
                 )
@@ -137,19 +142,20 @@ class SalesService:
             )
             self.db.add(nueva_venta)
             
-            # 3. Commit de toda la operación
             await self.db.commit()
             await self.db.refresh(nueva_venta)
             return nueva_venta
 
         except Exception as e:
             await self.db.rollback()
-            # Si el error ya es una HTTPException, la relanzamos
-            if isinstance(e, HTTPException):
-                raise e
+            if isinstance(e, HTTPException): raise e
             raise HTTPException(status_code=500, detail=f"Error en la venta: {str(e)}")
 
-    async def check_availability(self, receta_id: UUID, cantidad: int):
+    async def check_availability(self, receta_id: UUID, cantidad: int, area_id: UUID):
+        area = await self.db.get(AreaOperativa, area_id)
+        if not area: raise HTTPException(status_code=404, detail="Área no encontrada")
+        bodega_id = area.bodega_consumo_id
+
         stmt = select(RecetaIngrediente).where(RecetaIngrediente.receta_id == receta_id)
         result = await self.db.execute(stmt)
         ingredientes = result.scalars().all()
@@ -159,7 +165,7 @@ class SalesService:
         
         for ing in ingredientes:
             needed = ing.cantidad * cantidad
-            stock_actual = await self.stock_service.get_stock_actual(ing.producto_id, ing.bodega_id)
+            stock_actual = await self.stock_service.get_stock_actual(ing.producto_id, bodega_id)
             disponible = stock_actual >= needed
             if not disponible: todo_disponible = False
             
@@ -171,3 +177,4 @@ class SalesService:
             })
         
         return {"puede_vender": todo_disponible, "detalle": reporte}
+

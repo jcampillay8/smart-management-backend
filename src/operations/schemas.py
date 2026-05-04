@@ -4,11 +4,24 @@ from uuid import UUID
 from datetime import datetime, date
 from typing import Optional, List
 
+# --- CATEGORIAS DE RECETAS ---
+
+class CategoriaRecetaBase(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=100)
+    color: Optional[str] = None
+    icono: Optional[str] = None
+
+class CategoriaRecetaCreate(CategoriaRecetaBase):
+    pass
+
+class CategoriaRecetaOut(CategoriaRecetaBase):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
 # --- RECETAS (Ajuste principal para Gestion.tsx) ---
 
 class IngredienteRecetaBase(BaseModel):
     producto_id: UUID
-    bodega_id: UUID
     cantidad: float = Field(..., ge=0.001)
 
 class IngredienteRecetaOut(IngredienteRecetaBase):
@@ -22,14 +35,17 @@ class RecetaBase(BaseModel):
     precio: float = Field(..., ge=0)
     iva_incluido: bool = Field(default=True)
     iva_porcentaje: float = Field(default=19.0, ge=0)
+    categoria_receta_id: Optional[UUID] = None
 
 class RecetaCreate(RecetaBase):
     # Lista de ingredientes que se envía desde el Dialog de Recetas
     ingredientes: List[IngredienteRecetaBase]
+    areas_operativas_ids: List[UUID] = []
 
 class RecetaOut(RecetaBase):
     id: UUID
     ingredientes: List[IngredienteRecetaOut] = []
+    areas_operativas_ids: List[UUID] = []
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -79,7 +95,7 @@ class RegistroStockBase(BaseModel):
     tipo_movimiento: str 
     fecha_recuento: date = Field(default_factory=date.today)
     fecha_vencimiento: Optional[date] = None
-    motivo_merma: Optional[str] = Field(None, pattern="^(vencimiento|daño|error|otro)$")
+    motivo_merma: Optional[str] = None
     descripcion_merma: Optional[str] = None
     evento_id: Optional[UUID] = None
 
@@ -92,6 +108,7 @@ class RegistroStockOut(RegistroStockBase):
     created_at: datetime
     nombre_producto: Optional[str] = None 
     nombre_bodega: Optional[str] = None
+    user_display_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 # --- ESTADÍSTICAS Y OTROS ---

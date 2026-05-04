@@ -61,18 +61,42 @@ class CatalogService:
         return result.scalars().all()
 
     async def create_category(self, data: CategoriaCreate) -> Categoria:
-        nueva_cat = Categoria(nombre=data.nombre)
+        nueva_cat = Categoria(
+            nombre=data.nombre,
+            color=data.color,
+            icono=data.icono
+        )
         self.db.add(nueva_cat)
         await self.db.commit()
         await self.db.refresh(nueva_cat)
         return nueva_cat
 
     async def create_bodega(self, data: BodegaCreate) -> Bodega:
-        nueva_bodega = Bodega(nombre=data.nombre)
+        nueva_bodega = Bodega(
+            nombre=data.nombre,
+            icono=data.icono,
+            color=data.color
+        )
         self.db.add(nueva_bodega)
         await self.db.commit()
         await self.db.refresh(nueva_bodega)
         return nueva_bodega
+
+    async def update_bodega(self, bodega_id: UUID, data: BodegaCreate) -> Bodega:
+        result = await self.db.execute(select(Bodega).where(Bodega.id == bodega_id))
+        db_bodega = result.scalar_one()
+        db_bodega.nombre = data.nombre
+        db_bodega.icono = data.icono
+        db_bodega.color = data.color
+        await self.db.commit()
+        await self.db.refresh(db_bodega)
+        return db_bodega
+
+    async def delete_bodega(self, bodega_id: UUID):
+        result = await self.db.execute(select(Bodega).where(Bodega.id == bodega_id))
+        db_bodega = result.scalar_one()
+        await self.db.delete(db_bodega)
+        await self.db.commit()
 
     async def create_product(self, data: ProductoCreate) -> Producto:
         # 1. Crear producto
@@ -88,6 +112,8 @@ class CatalogService:
                     producto_id=nuevo_prod.id,
                     bodega_id=config_data.bodega_id,
                     stock_minimo=config_data.stock_minimo,
+                    coordenada_letra=config_data.coordenada_letra,
+                    coordenada_numero=config_data.coordenada_numero,
                     stock_actual=0.0
                 )
                 self.db.add(nueva_conf)
@@ -116,6 +142,8 @@ class CatalogService:
         result = await self.db.execute(select(Categoria).where(Categoria.id == categoria_id))
         db_cat = result.scalar_one()
         db_cat.nombre = data.nombre
+        db_cat.color = data.color
+        db_cat.icono = data.icono
         await self.db.commit()
         await self.db.refresh(db_cat)
         return db_cat
@@ -146,7 +174,10 @@ class CatalogService:
 
         # 3. Manejar Configuración de Bodegas (Mínimos)
         if data.bodegas_config:
-            # Borramos configuraciones actuales para simplificar (o puedes hacer un merge)
+            # Obtenemos stocks actuales para preservarlos
+            stock_map = {b.bodega_id: b.stock_actual for b in db_prod.bodegas_config}
+
+            # Borramos configuraciones actuales para simplificar
             from sqlalchemy import delete
             await self.db.execute(
                 delete(ProductoBodega).where(ProductoBodega.producto_id == producto_id)
@@ -158,7 +189,9 @@ class CatalogService:
                     producto_id=producto_id,
                     bodega_id=config.bodega_id,
                     stock_minimo=config.stock_minimo,
-                    stock_actual=0.0 # O preservar el anterior si existe
+                    coordenada_letra=config.coordenada_letra,
+                    coordenada_numero=config.coordenada_numero,
+                    stock_actual=stock_map.get(config.bodega_id, 0.0)
                 )
                 self.db.add(nueva_conf)
 

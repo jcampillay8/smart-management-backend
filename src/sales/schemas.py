@@ -7,7 +7,6 @@ from typing import List, Optional
 # --- Ingredientes de la Receta ---
 class RecetaIngredienteBase(BaseModel):
     producto_id: UUID
-    bodega_id: UUID  # De dónde se descuenta por defecto
     cantidad: float = Field(..., ge=0, description="Cantidad del insumo necesaria")
 
 class RecetaIngredienteCreate(RecetaIngredienteBase):
@@ -44,6 +43,7 @@ class VentaRecetaBase(BaseModel):
     precio_unitario: float = Field(..., ge=0)
 
 class VentaRecetaCreate(VentaRecetaBase):
+    area_id: UUID
     """El usuario_id se inyectará desde el token en el router/service"""
     pass
 

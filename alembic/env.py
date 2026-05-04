@@ -92,6 +92,7 @@ def do_run_migrations(connection: Connection) -> None:
     with context.begin_transaction():
         # Aseguramos que el esquema exista antes de intentar crear tablas
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS chat"))
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS operations"))
         context.run_migrations()
 
 async def run_async_migrations() -> None:

@@ -9,6 +9,8 @@ from typing import Optional, List
 # ==========================================
 class CategoriaBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
+    color: Optional[str] = Field(None, max_length=20)
+    icono: Optional[str] = Field(None, max_length=50)
 
 class CategoriaCreate(CategoriaBase):
     pass
@@ -23,6 +25,7 @@ class CategoriaOut(CategoriaBase):
 class BodegaBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
     icono: Optional[str] = Field(default=None, max_length=50)
+    color: Optional[str] = Field(default="#10B981", max_length=20)
 
 class BodegaCreate(BodegaBase):
     pass
@@ -37,6 +40,8 @@ class BodegaOut(BodegaBase):
 class ProductoBodegaBase(BaseModel):
     bodega_id: UUID
     stock_minimo: float = Field(default=0.0, ge=0)
+    coordenada_letra: Optional[str] = Field(default=None, max_length=10)
+    coordenada_numero: Optional[str] = Field(default=None, max_length=10)
 
 class ProductoBodegaCreate(ProductoBodegaBase):
     producto_id: UUID
@@ -57,6 +62,14 @@ class ProductoBase(BaseModel):
     # --- AJUSTE IVA ---
     iva_incluido: bool = Field(default=True)
     iva_porcentaje: float = Field(default=19.0, ge=0)
+    sku: Optional[str] = Field(default=None, max_length=100)
+    codigo_barra: Optional[str] = Field(default=None, max_length=100)
+    factor_conversion: float = Field(default=1.0)
+    unidad_conversion: Optional[str] = Field(default=None, max_length=50)
+    imagen_url: Optional[str] = Field(default=None, max_length=1000)
+    precio_venta: Optional[float] = Field(default=0.0)
+    marca: Optional[str] = Field(default=None, max_length=100)
+    proveedor: Optional[str] = Field(default=None, max_length=200)
 
 class ProductoCreate(ProductoBase):
     # Gestion.tsx envía esto cuando guardas un producto nuevo o editado
@@ -89,6 +102,7 @@ class RegistroStockOut(BaseModel):
     producto_id: UUID
     bodega_id: UUID
     cantidad: float
+    cantidad_anterior: Optional[float] = None
     tipo_movimiento: str
     fecha_recuento: date
     fecha_vencimiento: Optional[date]
@@ -99,8 +113,18 @@ class RegistroStockOut(BaseModel):
     nombre_producto: Optional[str] = None
     nombre_bodega: Optional[str] = None
     user_display_name: Optional[str] = None 
+    receta_consumo_id: Optional[str] = None
+    receta_id: Optional[UUID] = None
+    registro_origen_id: Optional[UUID] = None
+    modificado_por: Optional[int] = None
+    modificado_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+class RegistroStockUpdate(BaseModel):
+    cantidad: float
+    motivo_merma: Optional[str] = None
+    descripcion_merma: Optional[str] = None
 
 class StockBulkCreate(BaseModel):
     movements: List[RegistroStockCreate]

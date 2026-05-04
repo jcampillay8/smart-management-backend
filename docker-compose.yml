@@ -36,8 +36,8 @@ services:
     container_name: easy-postgres
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-jcampillay}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-BTC.100K.jc}
+      POSTGRES_USER: ${DB_USER:-xslyrk}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-_Q1o0w2i9e3u8}
       POSTGRES_DB: ${DB_NAME:-EasyManagement}
     ports:
       - "5443:5432"

@@ -13,6 +13,8 @@ class CategoriaReceta(BaseModel):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    icono: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 class Receta(BaseModel):
@@ -37,6 +39,12 @@ class Receta(BaseModel):
         cascade="all, delete-orphan"
     )
 
+    areas_operativas: Mapped[List["AreaOperativa"]] = relationship(
+        "src.inventory.models.AreaOperativa",
+        secondary=f"{settings.DB_SCHEMA}.area_operativa_recetas",
+        back_populates="recetas"
+    )
+
 class RecetaIngrediente(BaseModel):
     __tablename__ = "receta_ingredientes"
     __table_args__ = ({'schema': settings.DB_SCHEMA})
@@ -47,9 +55,6 @@ class RecetaIngrediente(BaseModel):
     )
     producto_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(f"{settings.DB_SCHEMA}.productos.id", ondelete="CASCADE")
-    )
-    bodega_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id")
     )
     cantidad: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
     

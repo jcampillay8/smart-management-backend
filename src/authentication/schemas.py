@@ -29,6 +29,7 @@ class UserPublicSchema(BaseModel):
     first_name: str = Field(..., alias="firstName")
     last_name: str = Field(..., alias="lastName")
     user_image: Optional[str] = Field(None, alias="userImage")
+    occupation: Optional[str] = Field(None, alias="occupation")
     settings: Dict[str, Any] = Field(default_factory=dict)
     has_accepted_terms: bool = Field(..., alias="termsAccepted")
     token_expires_at: Optional[int] = Field(None, alias="tokenExpiresAt")

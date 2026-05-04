@@ -58,6 +58,7 @@ app = FastAPI(
 )
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 # ==============================
 # 🛡️ Trusted Hosts & Middlewares
@@ -66,14 +67,16 @@ if settings.ENVIRONMENT == "production":
     trusted_hosts = ["localhost", "127.0.0.1", "*"] # Modificar con tu dominio real luego
 else:
     # Agregamos 0.0.0.0 y host.docker.internal por seguridad en Docker
-    trusted_hosts = ["localhost", "127.0.0.1", "10.0.2.2", "0.0.0.0", "*.ngrok-free.app"]
+    trusted_hosts = ["*"]
 
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 app.add_middleware(ForceHTTPSRedirectMiddleware)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=settings.SECRET_KEY,
-    session_cookie="easy_mgmt_session"
+    session_cookie="easy_mgmt_session",
+    same_site="none",
+    https_only=False 
 )
 app.add_middleware(
     CORSMiddleware,

@@ -5,7 +5,8 @@ from typing import List, Optional
 from uuid import UUID
 
 from src.database import get_async_session
-from src.dependencies import get_current_user
+from src.dependencies import get_current_user, require_role
+from src.models import AppRole
 from src.inventory.services.catalog_service import CatalogService
 from src.inventory.schemas import (
     CategoriaOut, CategoriaCreate, 
@@ -64,9 +65,27 @@ async def list_bodegas(db: AsyncSession = Depends(get_async_session)):
 async def create_bodega(
     data: BodegaCreate, 
     db: AsyncSession = Depends(get_async_session),
-    _ = Depends(get_current_user)
+    _ = Depends(require_role([AppRole.ADMIN, AppRole.PROPIETARIO]))
 ):
     return await CatalogService(db).create_bodega(data)
+
+@router.put("/bodegas/{bodega_id}", response_model=BodegaOut)
+async def update_bodega(
+    bodega_id: UUID,
+    data: BodegaCreate,
+    db: AsyncSession = Depends(get_async_session),
+    _ = Depends(require_role([AppRole.ADMIN, AppRole.PROPIETARIO]))
+):
+    return await CatalogService(db).update_bodega(bodega_id, data)
+
+@router.delete("/bodegas/{bodega_id}")
+async def delete_bodega(
+    bodega_id: UUID,
+    db: AsyncSession = Depends(get_async_session),
+    _ = Depends(require_role([AppRole.PROPIETARIO]))
+):
+    await CatalogService(db).delete_bodega(bodega_id)
+    return {"status": "success", "message": "Bodega eliminada"}
 
 # ==========================================
 # PRODUCTOS

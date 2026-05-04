@@ -11,7 +11,7 @@ from src.models import User, RegistroStock
 from src.inventory.services.stock_service import StockService
 from src.inventory.services.history_service import HistoryService
 from src.inventory.services.inventory_engine_service import InventoryEngineService
-from src.inventory.schemas import RegistroStockCreate, RegistroStockOut, StockBulkCreate, TransferenciaStockCreate
+from src.inventory.schemas import RegistroStockCreate, RegistroStockOut, StockBulkCreate, TransferenciaStockCreate, RegistroStockUpdate
 from src.authentication.dependencies import get_valid_record_for_modification
 
 router = APIRouter()
@@ -64,18 +64,35 @@ async def get_inventory_log(
 @router.delete("/consume/{record_id}")
 async def remove_consumption(
     record: RegistroStock = Depends(get_valid_record_for_modification),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Elimina un registro y revierte el stock físicamente."""
     service = StockService(db)
     try:
-        await service.revert_stock_movement(record)
-        await db.delete(record)
-        await db.commit()
+        await service.delete_consumption(record, current_user.id)
         return {"detail": "Registro eliminado y stock restaurado"}
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al revertir stock: {str(e)}")
+
+@router.put("/consume/{record_id}", response_model=RegistroStockOut)
+async def update_consumption(
+    data: RegistroStockUpdate,
+    record: RegistroStock = Depends(get_valid_record_for_modification),
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Modifica un registro de consumo, generando trazabilidad."""
+    service = StockService(db)
+    try:
+        updated_record = await service.update_consumption(record, data, current_user.id)
+        return updated_record
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al actualizar registro: {str(e)}")
 
 @router.post("/transfer", status_code=status.HTTP_201_CREATED)
 async def transfer_stock(
@@ -93,3 +110,42 @@ async def transfer_stock(
         user_id=current_user.id,
         fecha_recuento=data.fecha_recuento
     )
+
+
+@router.post("/undo", status_code=status.HTTP_200_OK)
+async def undo_last_movement(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Revierte el último grupo de movimientos del usuario actual.
+    Busca los registros más recientes (mismo timestamp aprox.) y genera
+    movimientos inversos registrados en el historial como 'reversion'.
+    """
+    service = StockService(db)
+    result = await service.undo_last_movements(current_user.id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay movimientos recientes para deshacer"
+        )
+    return {"message": f"Se revirtieron {result} movimiento(s)", "count": result}
+
+
+@router.post("/redo", status_code=status.HTTP_200_OK)
+async def redo_last_undone(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Re-aplica el último grupo de movimientos revertidos del usuario actual.
+    Busca registros de tipo 'reversion' y genera los movimientos originales nuevamente.
+    """
+    service = StockService(db)
+    result = await service.redo_last_movements(current_user.id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay movimientos para rehacer"
+        )
+    return {"message": f"Se rehízo {result} movimiento(s)", "count": result}

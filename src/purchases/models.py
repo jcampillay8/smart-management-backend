@@ -22,6 +22,9 @@ class Proveedor(BaseModel):
     direccion: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # El campo is_deleted no existe en la tabla proveedores (versión 0012)
+    is_deleted = None
+
 
 class Compra(BaseModel):
     __tablename__ = "compras"
@@ -36,6 +39,7 @@ class Compra(BaseModel):
     factura_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     proveedor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     notas: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    tiene_incidencia: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     items: Mapped[List["CompraItem"]] = relationship(back_populates="compra", cascade="all, delete-orphan")
 

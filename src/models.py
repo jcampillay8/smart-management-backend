@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import BaseModel, metadata
 from src.config import settings
+import src.config as app_config
 
 # --- Relaciones de Autenticación (REQUERIDAS) ---
 from src.authentication.models import (
@@ -19,9 +20,11 @@ from src.authentication.models import (
     PasswordResetToken
 )
 from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega
-from src.operations.models import RegistroStock, Evento, EventoProducto, ConteoInventario, ConteoItem
+from src.operations.models import RegistroStock, Evento, EventoProducto, ConteoInventario, ConteoItem, EventoReceta
 from src.sales.models import Receta, RecetaIngrediente, VentaReceta, CategoriaReceta
-from src.purchases.models import Compra, CompraItem
+from src.purchases.models import Compra, CompraItem, Proveedor
+from src.purchases.incidencias_models import NotificacionIncidencia, PlantillaEmail
+from src.notes.models import Nota, NotaMencion
 from src.ai_management.models import LLMRequestLog
 
 # NOTA: Los modelos de ai_manage y common_errors se comentan para priorizar Auth.
@@ -40,6 +43,7 @@ class AppRole(str, enum.Enum):
     ADMIN = "admin"
     USER = "user"
     SUPERVISOR = "supervisor"
+    PROPIETARIO = "propietario"
 
 # Tabla intermedia con esquema explícito
 user_chat = Table(
@@ -77,6 +81,10 @@ class User(BaseModel):
     has_accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
     last_login: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Campos de perfil visible
+    nombre_visible: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+
     # Relaciones Auth
     session_history: Mapped[List["UserSessionHistory"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     refresh_tokens: Mapped[List["RefreshToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -97,6 +105,11 @@ class User(BaseModel):
         "PermisoMerma", 
         foreign_keys="[PermisoMerma.user_id]", 
         back_populates="user"
+    )
+    areas_operativas: Mapped[List["AreaOperativa"]] = relationship(
+        "src.inventory.models.AreaOperativa",
+        secondary=f"{app_config.settings.DB_SCHEMA}.area_operativa_usuarios",
+        back_populates="usuarios"
     )
 
     llm_requests: Mapped[List["LLMRequestLog"]] = relationship("LLMRequestLog", back_populates="user", cascade="all, delete-orphan")

@@ -239,7 +239,68 @@ class StockService:
         prod_bodega = result.scalar_one_or_none()
         
         if prod_bodega:
-            prod_bodega.stock_actual -= float(record.cantidad)
+            prod_bodega.stock_actual -= Decimal(str(record.cantidad))
+
+    async def update_consumption(self, record: RegistroStock, data: "RegistroStockUpdate", user_id: int):
+        """
+        Modifica un registro de consumo, generando trazabilidad.
+        """
+        stmt = select(ProductoBodega).where(
+            ProductoBodega.producto_id == record.producto_id,
+            ProductoBodega.bodega_id == record.bodega_id
+        ).with_for_update()
+        
+        result = await self.db.execute(stmt)
+        prod_bodega = result.scalar_one_or_none()
+        
+        if not prod_bodega:
+            raise HTTPException(status_code=404, detail="Configuración Producto/Bodega no encontrada.")
+            
+        nueva_cantidad = -abs(float(data.cantidad))
+        diferencia = Decimal(str(nueva_cantidad)) - Decimal(str(record.cantidad))
+        
+        if prod_bodega.stock_actual + diferencia < 0:
+            raise HTTPException(status_code=400, detail="Stock insuficiente para realizar esta modificación.")
+
+        # Actualizar stock
+        prod_bodega.stock_actual += diferencia
+        
+        # Registrar auditoría en el mismo registro
+        record.cantidad_anterior = record.cantidad
+        record.cantidad = nueva_cantidad
+        record.modificado_por = user_id
+        record.modificado_at = datetime.now()
+        
+        if data.motivo_merma is not None:
+            record.motivo_merma = data.motivo_merma
+        if data.descripcion_merma is not None:
+            record.descripcion_merma = data.descripcion_merma
+            
+        await self.db.commit()
+        await self.db.refresh(record)
+        return record
+
+    async def delete_consumption(self, record: RegistroStock, user_id: int):
+        """
+        Elimina un registro y genera trazabilidad creando un registro tipo eliminacion.
+        """
+        await self.revert_stock_movement(record)
+        
+        # Crear registro de auditoría
+        audit_record = RegistroStock(
+            producto_id=record.producto_id,
+            bodega_id=record.bodega_id,
+            usuario_id=user_id,
+            cantidad=abs(float(record.cantidad)), # La reversión suma el stock devuelto
+            tipo_movimiento="eliminacion",
+            fecha_recuento=date.today(),
+            registro_origen_id=record.id
+        )
+        self.db.add(audit_record)
+        
+        # Eliminar el registro original (la BD debe permitir registro_origen_id apuntando a algo borrado si no hay constraint FK, lo cual no lo hay según models.py)
+        await self.db.delete(record)
+        await self.db.commit()
 
     async def get_inventory_log(self, date_filter: date, bodega_id: Optional[UUID] = None):
         """
@@ -347,7 +408,7 @@ class StockService:
         prod_origen.stock_actual -= Decimal(str(cantidad))
         prod_destino.stock_actual += Decimal(str(cantidad))
 
-        transfer_id = UUID()
+        transfer_id = str(uuid.uuid4())
         
         reg_salida = RegistroStock(
             producto_id=producto_id,
@@ -374,3 +435,143 @@ class StockService:
         await self.db.commit()
 
         return {"message": "Transferencia completada", "transfer_id": str(transfer_id)}
+
+    async def undo_last_movements(self, user_id: int) -> int:
+        """
+        Revierte el último grupo de movimientos del usuario.
+        - Busca los registros más recientes (últimos 2 minutos) del usuario que no sean
+          'reversion' ni 'redo'.
+        - Por cada uno, crea un movimiento inverso (tipo='reversion') vinculado al original.
+        - Actualiza el cache de ProductoBodega.
+        """
+        from datetime import datetime, timedelta, timezone
+        from uuid import uuid4
+
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=2)
+
+        stmt = (
+            select(RegistroStock)
+            .where(
+                RegistroStock.usuario_id == user_id,
+                RegistroStock.created_at >= cutoff,
+                RegistroStock.tipo_movimiento.notin_(["reversion", "redo"])
+            )
+            .order_by(RegistroStock.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        registros = result.scalars().all()
+
+        if not registros:
+            return 0
+
+        # Group by the most recent "batch" — same session window (within 30s of the most recent)
+        if registros:
+            latest_time = registros[0].created_at
+            # Make sure latest_time is timezone-aware
+            if latest_time.tzinfo is None:
+                from datetime import timezone as tz
+                latest_time = latest_time.replace(tzinfo=tz.utc)
+            batch_cutoff = latest_time - timedelta(seconds=30)
+            batch = [r for r in registros if (
+                (r.created_at.replace(tzinfo=tz.utc) if r.created_at.tzinfo is None else r.created_at)
+                >= batch_cutoff
+            )]
+        else:
+            batch = registros
+
+        count = 0
+        for reg in batch:
+            # Fetch product bodega cache
+            stmt_pb = select(ProductoBodega).where(
+                ProductoBodega.producto_id == reg.producto_id,
+                ProductoBodega.bodega_id == reg.bodega_id,
+            ).with_for_update()
+            result_pb = await self.db.execute(stmt_pb)
+            prod_bodega = result_pb.scalar_one_or_none()
+
+            # The inverse quantity reverses the original movement
+            inverse_qty = -float(reg.cantidad)
+
+            reversion = RegistroStock(
+                producto_id=reg.producto_id,
+                bodega_id=reg.bodega_id,
+                usuario_id=user_id,
+                cantidad=inverse_qty,
+                tipo_movimiento="reversion",
+                fecha_recuento=reg.fecha_recuento,
+                registro_origen_id=reg.id,
+            )
+            self.db.add(reversion)
+
+            if prod_bodega:
+                prod_bodega.stock_actual = Decimal(str(float(prod_bodega.stock_actual) + inverse_qty))
+
+            count += 1
+
+        await self.db.commit()
+        return count
+
+    async def redo_last_movements(self, user_id: int) -> int:
+        """
+        Re-aplica el último grupo de 'reversion' del usuario.
+        - Busca los registros más recientes de tipo='reversion' del usuario (últimos 2 min).
+        - Por cada uno, crea un movimiento 'redo' que re-aplica la cantidad original.
+        """
+        from datetime import datetime, timedelta, timezone as tz
+
+        cutoff = datetime.now(tz.utc) - timedelta(minutes=2)
+
+        stmt = (
+            select(RegistroStock)
+            .where(
+                RegistroStock.usuario_id == user_id,
+                RegistroStock.created_at >= cutoff,
+                RegistroStock.tipo_movimiento == "reversion",
+            )
+            .order_by(RegistroStock.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        reversiones = result.scalars().all()
+
+        if not reversiones:
+            return 0
+
+        latest_time = reversiones[0].created_at
+        if latest_time.tzinfo is None:
+            latest_time = latest_time.replace(tzinfo=tz.utc)
+        batch_cutoff = latest_time - timedelta(seconds=30)
+        batch = [r for r in reversiones if (
+            (r.created_at.replace(tzinfo=tz.utc) if r.created_at.tzinfo is None else r.created_at)
+            >= batch_cutoff
+        )]
+
+        count = 0
+        for rev in batch:
+            stmt_pb = select(ProductoBodega).where(
+                ProductoBodega.producto_id == rev.producto_id,
+                ProductoBodega.bodega_id == rev.bodega_id,
+            ).with_for_update()
+            result_pb = await self.db.execute(stmt_pb)
+            prod_bodega = result_pb.scalar_one_or_none()
+
+            # Re-applying the original = negating the reversion
+            redo_qty = -float(rev.cantidad)
+
+            redo_reg = RegistroStock(
+                producto_id=rev.producto_id,
+                bodega_id=rev.bodega_id,
+                usuario_id=user_id,
+                cantidad=redo_qty,
+                tipo_movimiento="redo",
+                fecha_recuento=rev.fecha_recuento,
+                registro_origen_id=rev.registro_origen_id,
+            )
+            self.db.add(redo_reg)
+
+            if prod_bodega:
+                prod_bodega.stock_actual = Decimal(str(float(prod_bodega.stock_actual) + redo_qty))
+
+            count += 1
+
+        await self.db.commit()
+        return count

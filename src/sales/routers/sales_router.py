@@ -64,8 +64,9 @@ async def register_sale(
 @router.get("/availability/{receta_id}")
 async def check_availability(
     receta_id: UUID,
+    area_id: UUID,
     cantidad: int = Query(default=1, ge=1),
     db: AsyncSession = Depends(get_async_session)
 ):
-    """Consulta si es posible realizar una venta antes de procesarla."""
-    return await SalesService(db).check_availability(receta_id, cantidad)
+    """Consulta si es posible realizar una venta antes de procesarla en el área seleccionada."""
+    return await SalesService(db).check_availability(receta_id, cantidad, area_id)
