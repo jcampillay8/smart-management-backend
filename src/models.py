@@ -19,12 +19,11 @@ from src.authentication.models import (
     EmailConfirmationToken, 
     PasswordResetToken
 )
-from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega, AreaOperativa, AreaOperativaBodega, AreaOperativaUsuario, AreaOperativaReceta
-from src.operations.models import RegistroStock, Evento, EventoProducto, ConteoInventario, ConteoItem, EventoReceta
+from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega
+from src.operations.models import RegistroStock, Evento, EventoProducto, EventoReceta, ConteoInventario, ConteoItem
 from src.sales.models import Receta, RecetaIngrediente, VentaReceta, CategoriaReceta
 from src.purchases.models import Compra, CompraItem, Proveedor
-from src.purchases.incidencias_models import NotificacionIncidencia, PlantillaEmail
-from src.notes.models import Nota, NotaMencion
+from src.finance.models import GastoOperativo
 from src.ai_management.models import LLMRequestLog
 
 # NOTA: Los modelos de ai_manage y common_errors se comentan para priorizar Auth.

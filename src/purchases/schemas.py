@@ -8,6 +8,7 @@ class CompraItemBase(BaseModel):
     producto_id: uuid.UUID
     bodega_id: Optional[uuid.UUID] = None
     cantidad: float
+    cantidad_pedida: float = 0.0
     precio_unitario: float
 
 class CompraItemCreate(CompraItemBase):
@@ -15,7 +16,8 @@ class CompraItemCreate(CompraItemBase):
 
 class CompraItem(CompraItemBase):
     id: uuid.UUID
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 class CompraBase(BaseModel):
@@ -24,7 +26,7 @@ class CompraBase(BaseModel):
     fecha: date
     total: float
     factura_url: Optional[str] = None
-    proveedor: Optional[str] = None
+    proveedor_id: Optional[uuid.UUID] = None
     notas: Optional[str] = None
 
 class CompraCreate(CompraBase):
@@ -36,15 +38,16 @@ class CompraUpdate(BaseModel):
     fecha: Optional[date] = None
     total: Optional[float] = None
     factura_url: Optional[str] = None
-    proveedor: Optional[str] = None
+    proveedor_id: Optional[uuid.UUID] = None
     notas: Optional[str] = None
 
 class Compra(CompraBase):
     id: uuid.UUID
     usuario_id: int
-    created_at: datetime
-    updated_at: datetime
-    items: List[CompraItem]
+    items: List[CompraItem] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 class ScanInvoiceRequest(BaseModel):
@@ -117,8 +120,8 @@ class ProveedorUpdate(BaseModel):
 
 class ProveedorOut(ProveedorBase):
     id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 # ======================

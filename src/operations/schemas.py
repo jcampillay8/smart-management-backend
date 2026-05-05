@@ -95,7 +95,7 @@ class RegistroStockBase(BaseModel):
     tipo_movimiento: str 
     fecha_recuento: date = Field(default_factory=date.today)
     fecha_vencimiento: Optional[date] = None
-    motivo_merma: Optional[str] = None
+    motivo_merma: Optional[str] = Field(None, pattern="^(vencimiento|daño|error|otro|caducidad|exceso|mal estado)$")
     descripcion_merma: Optional[str] = None
     evento_id: Optional[UUID] = None
 

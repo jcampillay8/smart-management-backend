@@ -21,6 +21,14 @@ class Proveedor(BaseModel):
     telefono: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     direccion: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    categoria_principal: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) 
+    dias_plazo_pago: Mapped[int] = mapped_column(Integer, default=0) 
+    tiempo_entrega_promedio_dias: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    compras: Mapped[List["Compra"]] = relationship(back_populates="proveedor_rel")
+    productos: Mapped[List["src.inventory.models.Producto"]] = relationship(back_populates="proveedor_principal")
 
     # El campo is_deleted no existe en la tabla proveedores (versión 0012)
     is_deleted = None
@@ -37,7 +45,8 @@ class Compra(BaseModel):
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
     total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     factura_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    proveedor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    proveedor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.proveedores.id", ondelete="SET NULL"), nullable=True)
+    proveedor_rel: Mapped[Optional["Proveedor"]] = relationship(back_populates="compras")
     notas: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     tiene_incidencia: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
@@ -52,7 +61,8 @@ class CompraItem(BaseModel):
     compra_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.compras.id", ondelete="CASCADE"))
     producto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     bodega_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)  # cantidad recibida
+    cantidad_pedida: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, server_default="0.0")  # cantidad solicitada
     precio_unitario: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
 
     compra: Mapped["Compra"] = relationship(back_populates="items")

@@ -23,8 +23,10 @@
 
 # ALEMBIC
 
-docker exec -it easy-backend alembic revision --autogenerate -m "add_missing_tables_and_fields"
+docker exec -it easy-backend alembic revision --autogenerate -m "add models BI Backend"
 
 docker exec -it easy-backend alembic upgrade head
+
+CREATE SCHEMA IF NOT EXISTS operations;
 
 
