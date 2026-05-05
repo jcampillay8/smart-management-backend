@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '0013'
-down_revision: Union[str, None] = '0012'
+revision: str = '0020'
+down_revision: Union[str, None] = '0019'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -38,12 +38,6 @@ def upgrade() -> None:
     )
     # Removed unintended drop statements
     op.add_column('compras', sa.Column('proveedor_id', sa.UUID(), nullable=True), schema='operations')
-    op.alter_column('compras', 'factura_url',
-               existing_type=sa.VARCHAR(length=1000),
-               type_=sa.String(length=500),
-               existing_nullable=True,
-               schema='operations')
-    op.drop_constraint(op.f('compras_usuario_id_fkey'), 'compras', schema='operations', type_='foreignkey')
     op.create_foreign_key(None, 'compras', 'proveedores', ['proveedor_id'], ['id'], source_schema='operations', referent_schema='operations', ondelete='SET NULL')
     op.drop_column('compras', 'proveedor', schema='operations')
     op.add_column('productos', sa.Column('proveedor_id', sa.UUID(), nullable=True), schema='operations')
@@ -53,22 +47,7 @@ def upgrade() -> None:
     op.add_column('proveedores', sa.Column('dias_plazo_pago', sa.Integer(), nullable=False), schema='operations')
     op.add_column('proveedores', sa.Column('tiempo_entrega_promedio_dias', sa.Integer(), nullable=True), schema='operations')
     op.add_column('proveedores', sa.Column('activo', sa.Boolean(), nullable=False), schema='operations')
-    op.alter_column('proveedores', 'created_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               nullable=False,
-               existing_server_default=sa.text('now()'),
-               schema='operations')
-    op.alter_column('proveedores', 'updated_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               nullable=False,
-               existing_server_default=sa.text('now()'),
-               schema='operations')
-    op.alter_column('proveedores', 'is_deleted',
-               existing_type=sa.BOOLEAN(),
-               nullable=False,
-               existing_server_default=sa.text('false'),
-               schema='operations')
-    op.drop_index(op.f('ix_proveedores_nombre_empresa'), table_name='proveedores', schema='operations')
+    op.add_column('proveedores', sa.Column('is_deleted', sa.Boolean(), server_default=sa.text('false'), nullable=False), schema='operations')
     # Explicitly create the enum type
     motivo_merma_enum = postgresql.ENUM('vencimiento', 'daño', 'error', 'caducidad', 'exceso', 'mal estado', 'otro', name='motivo_merma_enum', schema='operations')
     motivo_merma_enum.create(op.get_bind())

@@ -45,7 +45,7 @@ class Producto(BaseModel):
     proveedor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.proveedores.id", ondelete="SET NULL"), nullable=True)
 
     # Relaciones
-    proveedor_principal: Mapped[Optional["Proveedor"]] = relationship("src.purchases.models.Proveedor", back_populates="productos")
+    proveedor_principal: Mapped[Optional["Proveedor"]] = relationship("Proveedor", back_populates="productos")
     categoria: Mapped["Categoria"] = relationship(back_populates="productos")
     bodegas_config: Mapped[List["ProductoBodega"]] = relationship(back_populates="producto", cascade="all, delete-orphan")
     

@@ -99,7 +99,7 @@ async def list_areas(
             selectinload(AreaOperativa.usuarios),
         )
     )
-    if current_user.role != AppRole.ADMIN:
+    if current_user.role not in [AppRole.ADMIN, AppRole.PROPIETARIO]:
         # Filter to only areas where this user is assigned
         query = query.join(
             AreaOperativaUsuario,
@@ -126,7 +126,7 @@ async def get_area(
     if not area:
         raise HTTPException(status_code=404, detail="Área operativa no encontrada")
     # Non-admins can only see their areas
-    if current_user.role != AppRole.ADMIN:
+    if current_user.role not in [AppRole.ADMIN, AppRole.PROPIETARIO]:
         if current_user.id not in [u.id for u in area.usuarios]:
             raise HTTPException(status_code=403, detail="Sin acceso a esta área operativa")
     return _area_to_out(area)
@@ -135,7 +135,7 @@ async def get_area(
 @settings_router.post("/areas", response_model=AreaOperativaOut, status_code=201)
 async def create_area(
     data: AreaOperativaCreate,
-    _admin: User = Depends(require_role([AppRole.ADMIN])),
+    _admin: User = Depends(require_role([AppRole.ADMIN, AppRole.PROPIETARIO])),
     db_session: AsyncSession = Depends(get_async_session),
 ):
     # Validate bodega_consumo exists
@@ -169,7 +169,7 @@ async def create_area(
 async def update_area(
     area_id: UUID,
     data: AreaOperativaUpdate,
-    _admin: User = Depends(require_role([AppRole.ADMIN])),
+    _admin: User = Depends(require_role([AppRole.ADMIN, AppRole.PROPIETARIO])),
     db_session: AsyncSession = Depends(get_async_session),
 ):
     result = await db_session.execute(sa_select(AreaOperativa).where(AreaOperativa.id == area_id))
@@ -215,7 +215,7 @@ async def update_area(
 @settings_router.delete("/areas/{area_id}", status_code=204)
 async def delete_area(
     area_id: UUID,
-    _admin: User = Depends(require_role([AppRole.ADMIN])),
+    _admin: User = Depends(require_role([AppRole.ADMIN, AppRole.PROPIETARIO])),
     db_session: AsyncSession = Depends(get_async_session),
 ):
     result = await db_session.execute(sa_select(AreaOperativa).where(AreaOperativa.id == area_id))

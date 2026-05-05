@@ -28,10 +28,9 @@ class Proveedor(BaseModel):
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     compras: Mapped[List["Compra"]] = relationship(back_populates="proveedor_rel")
-    productos: Mapped[List["src.inventory.models.Producto"]] = relationship(back_populates="proveedor_principal")
+    productos: Mapped[List["Producto"]] = relationship(back_populates="proveedor_principal")
 
-    # El campo is_deleted no existe en la tabla proveedores (versión 0012)
-    is_deleted = None
+
 
 
 class Compra(BaseModel):

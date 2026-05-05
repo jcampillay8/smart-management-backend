@@ -3,6 +3,7 @@ import uuid
 from typing import List, Optional
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_async_session
