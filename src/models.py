@@ -19,7 +19,7 @@ from src.authentication.models import (
     EmailConfirmationToken, 
     PasswordResetToken
 )
-from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega
+from src.inventory.models import Categoria, Producto, Bodega, ProductoBodega, AreaOperativa, AreaOperativaBodega, AreaOperativaUsuario, AreaOperativaReceta
 from src.operations.models import RegistroStock, Evento, EventoProducto, ConteoInventario, ConteoItem, EventoReceta
 from src.sales.models import Receta, RecetaIngrediente, VentaReceta, CategoriaReceta
 from src.purchases.models import Compra, CompraItem, Proveedor
