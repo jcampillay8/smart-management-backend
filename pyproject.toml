@@ -25,7 +25,7 @@ dependencies = [
   "psycopg2-binary ~=2.9",
 
   # Authentication and Security
-  "pydantic[email]>=2.3.0",
+  "pydantic[email]>=2.12.5",
   "python-jose[cryptography]>=3.3.0",
   "bcrypt>=4.1.0",
   "pyjwt>=2.8.0",
@@ -47,7 +47,7 @@ dependencies = [
 
   # AI/NLP Related Libraries (now only OpenAI)
   "openai>=1.0.0", # OpenAI API client
-  "google-generativeai>=0.5.0", 
+  "google-genai>=0.1.0", 
   "json-repair>=0.35.0",
   "google-api-core>=2.11.0",
   "google-cloud-texttospeech>=2.29.0",
@@ -78,9 +78,9 @@ dependencies = [
   "Jinja2==3.1.6", # (templating, often pulled by FastAPI/SQLAdmin)
   "MarkupSafe==3.0.2", # (dependency of Jinja2)
   "uv==0.7.8", # (uv itself can be a dependency for some tools)
-  "typing_extensions==4.13.2", # (typing backports)
-  "typing-inspection==0.4.1", # (typing inspection)
-  "annotated-types==0.7.0", # (pydantic dependency)
+  "typing_extensions>=4.14.1", # (typing backports)
+  "typing-inspection>=0.4.2", # (typing inspection)
+  "annotated-types>=0.7.0", # (pydantic dependency)
   "greenlet==3.2.2", # (greenlet for async/sync bridging, often pulled by SQLAlchemy)
   "anyio==4.9.0", # (async network/file operations, pulled by FastAPI)
   "h11==0.16.0", # (HTTP/1.1 protocol, pulled by Uvicorn/FastAPI)

@@ -16,7 +16,7 @@ from src.inventory.services.merma_service import MermaService
 
 router = APIRouter()
 
-@router.post("/", response_model=RegistroStockOut, status_code=201)
+@router.post("", response_model=RegistroStockOut, status_code=201)
 async def registrar_nueva_merma(
     payload: RegistroStockCreate,
     db: AsyncSession = Depends(get_async_session),

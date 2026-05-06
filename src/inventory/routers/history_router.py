@@ -22,7 +22,7 @@ def get_default_fecha_desde():
     return date.today() - timedelta(days=90)
 
 
-@router.get("/", response_model=List[RegistroStockOut])
+@router.get("", response_model=List[RegistroStockOut])
 async def get_history(
     bodega_id: str = Query("all"),
     producto_id: str = Query("all"),
@@ -47,7 +47,7 @@ async def get_history(
     )
 
 
-@router.delete("/", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_history(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)

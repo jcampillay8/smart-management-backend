@@ -54,7 +54,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="EasyManagement",
     description="Sistema de gestión de inventario, recetas y ventas",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
 )
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

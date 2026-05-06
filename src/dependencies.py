@@ -82,6 +82,8 @@ async def get_current_admin_user(
 
 def require_role(allowed_roles: list[AppRole]):
     async def role_checker(current_user: Annotated[User, Depends(get_current_active_user)]):
+        if current_user.role == AppRole.PROPIETARIO:
+            return current_user
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permisos para realizar esta acción"

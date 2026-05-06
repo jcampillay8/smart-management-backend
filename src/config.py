@@ -183,6 +183,16 @@ LOGGING_CONFIG: dict = {
             "handlers": ["default"],
             "level": logging.DEBUG,
             "propagate": False,
+        },
+        "urllib3": {
+            "handlers": ["default"],
+            "level": logging.INFO,
+            "propagate": False,
+        },
+        "sentry_sdk": {
+            "handlers": ["default"],
+            "level": logging.INFO,
+            "propagate": False,
         }
     }
 }

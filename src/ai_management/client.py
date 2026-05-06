@@ -1,12 +1,10 @@
 # src/ai_management/client.py
 import os
 import time
-from typing import Any # Añadido
-import google.generativeai as genai
+from typing import Any
+from google import genai
+from google.genai import types
 from .schemas import AIResponse
-
-# Configuración global de la API
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 async def call_gemini_api(
     system_instruction: str,
@@ -18,34 +16,37 @@ async def call_gemini_api(
     """Llamada directa a la API de Gemini con cálculo de costos dinámico."""
     
     start_time = time.monotonic()
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
     
-    # Usamos el nombre del modelo que viene de la DB
-    model = genai.GenerativeModel(
-        model_name=model_cfg.model_name,
-        system_instruction=system_instruction
+    config = types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=temperature,
     )
-    
-    generation_config = {"temperature": temperature}
     if expect_json:
-        generation_config["response_mime_type"] = "application/json"
+        config.response_mime_type = "application/json"
     
-    # Ejecución única con timeout
-    response = await model.generate_content_async(
-        user_prompt,
-        generation_config=generation_config,
-        request_options={"timeout": 60.0} 
-    )
-    
-    # Manejo de seguridad (Safety Filter)
     try:
-        content = response.text
-    except ValueError:
-        content = "{}" if expect_json else "Error: Respuesta bloqueada por filtros de seguridad."
-    
-    # Metadatos de tokens
-    usage = response.usage_metadata
-    input_tokens = getattr(usage, 'prompt_token_count', 0)
-    output_tokens = getattr(usage, 'candidates_token_count', 0)
+        async with client.aio as aclient:
+            # Ejecución única con timeout (el SDK nuevo maneja timeouts de forma distinta, pero por ahora lo dejamos así)
+            response = await aclient.models.generate_content(
+                model=model_cfg.model_name,
+                contents=user_prompt,
+                config=config
+            )
+            
+            content = response.text
+            
+            # Metadatos de tokens
+            usage = response.usage_metadata
+            input_tokens = usage.prompt_token_count if usage else 0
+            output_tokens = usage.candidates_token_count if usage else 0
+            
+    except Exception as e:
+        content = f"Error: {str(e)}"
+        if expect_json:
+            content = "{}"
+        input_tokens = 0
+        output_tokens = 0
     
     # CÁLCULO DE COSTO usando los precios de la DB (model_cfg)
     cost = (input_tokens * (model_cfg.input_price_per_million / 1_000_000)) + \
@@ -58,4 +59,4 @@ async def call_gemini_api(
         total_tokens=input_tokens + output_tokens,
         estimated_cost=cost,
         duration_ms=int((time.monotonic() - start_time) * 1000)
-    )
+    )

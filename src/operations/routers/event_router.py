@@ -12,12 +12,12 @@ from src.authentication.dependencies import get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=List[EventoOut], name="list_events")
+@router.get("", response_model=List[EventoOut], name="list_events")
 async def list_events(db: AsyncSession = Depends(get_async_session)):
     """Lista todos los eventos."""
     return await EventService(db).get_all_events()
 
-@router.post("/", response_model=EventoOut, status_code=status.HTTP_201_CREATED, name="create_event")
+@router.post("", response_model=EventoOut, status_code=status.HTTP_201_CREATED, name="create_event")
 async def create_event(
     event_data: EventoCreate, 
     db: AsyncSession = Depends(get_async_session),

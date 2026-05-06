@@ -18,9 +18,14 @@ class InventoryEngineService:
         stmt = select(RegistroStock)
         if bodega_id and bodega_id != "all":
             try:
-                stmt = stmt.where(RegistroStock.bodega_id == UUID(bodega_id))
+                # Soportar múltiples IDs separados por comas
+                ids = [UUID(id.strip()) for id in bodega_id.split(",") if id.strip()]
+                if len(ids) == 1:
+                    stmt = stmt.where(RegistroStock.bodega_id == ids[0])
+                else:
+                    stmt = stmt.where(RegistroStock.bodega_id.in_(ids))
             except ValueError:
-                # Si el UUID no es válido, podrías lanzar un error o ignorar el filtro
+                # Si algún UUID no es válido, ignoramos el filtro o podrías registrar el error
                 pass
             
         result = await self.db.execute(stmt)

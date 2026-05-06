@@ -16,7 +16,7 @@ router = APIRouter()
 # ENDPOINTS ADMINISTRATIVOS (Para Gestion.tsx)
 # =========================================================================
 
-@router.get("/", response_model=List[RecetaOut])
+@router.get("", response_model=List[RecetaOut])
 async def list_recipes(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
@@ -25,7 +25,7 @@ async def list_recipes(
     service = RecipeService(db)
     return await service.get_all_recipes()
 
-@router.post("/", response_model=RecetaOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=RecetaOut, status_code=status.HTTP_201_CREATED)
 async def create_new_recipe(
     data: RecetaCreate,
     db: AsyncSession = Depends(get_async_session),
