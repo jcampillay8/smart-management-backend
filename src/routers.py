@@ -12,6 +12,7 @@ from src.purchases.router import router as purchases_router
 from src.storage.router import router as storage_router
 from src.ai_management.router import router as ai_router
 from src.reports.router import router as reports_router
+from src.invoices.router import router as invoices_router
 
 routers = [
     auth_router,
@@ -26,5 +27,6 @@ routers = [
     purchases_router,
     storage_router,
     ai_router,
-    reports_router
+    reports_router,
+    invoices_router,
 ]

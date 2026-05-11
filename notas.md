@@ -23,7 +23,7 @@
 
 # ALEMBIC
 
-docker exec -it easy-backend alembic revision --autogenerate -m "add models BI Backend"
+docker exec -it easy-backend alembic revision --autogenerate -m "add models invoices"
 
 docker exec -it easy-backend alembic upgrade head
 

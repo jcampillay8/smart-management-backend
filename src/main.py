@@ -110,6 +110,11 @@ async def startup():
     except Exception as e:
         logger.error(f"❌ Error conectando a Redis: {e}")
 
+    import asyncio
+    from src.invoices.services import heartbeat_task
+    asyncio.create_task(heartbeat_task())
+    logger.info("✅ Heartbeat de WebSocket iniciado")
+
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Cerrando aplicación...")

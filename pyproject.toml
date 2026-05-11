@@ -15,7 +15,6 @@ dependencies = [
   "gunicorn>=21.2.0",
   "uvloop==0.19.0", # specific version for compatibility
   "httptools==0.6.1", # specific version for compatibility
-
   # Database and ORM
   "alembic>=1.12.0",
   "sqlalchemy>=2.0.20",
@@ -23,7 +22,6 @@ dependencies = [
   "redis<5.0.0", # specific upper bound
   "sqladmin>=0.16.0", # for admin interface
   "psycopg2-binary ~=2.9",
-
   # Authentication and Security
   "pydantic[email]>=2.3.0",
   "python-jose[cryptography]>=3.3.0",
@@ -31,36 +29,29 @@ dependencies = [
   "pyjwt>=2.8.0",
   "itsdangerous>=2.1.2", # dependency for sqladmin/other auth
   "authlib[starlette]>=1.2.0,<2.0.0",
-
   # HTTP Clients
   "httpx>=0.25.0", # for making HTTP requests
   "requests>=2.31.0", # also common for HTTP requests (ensure no redundancy with httpx if not both used)
-
   # Mercado Pago
   "mercadopago>=2.3.0",
-
   # Logging
   "loguru>=0.7.3",
-
   # Google Auth para OAuth2
   "google-auth>=2.23.0",
-
   # AI/NLP Related Libraries (now only OpenAI)
   "openai>=1.0.0", # OpenAI API client
-  "google-generativeai>=0.5.0", 
+  "google-generativeai>=0.5.0",
   "json-repair>=0.35.0",
   "google-api-core>=2.11.0",
   "google-cloud-texttospeech>=2.29.0",
   "langdetect==1.0.9",
-
   # Data Processing and Analysis
   "polars>=1.0.0",
-
   # Utilities and Other Dependencies
   "pyhumps>=2.0.0", # Biblioteca para conversión de camelCase/snake_case
   "pydantic-settings>=2.0.3", # for settings management
   "python-multipart>=0.0.6", # for form data handling
-  "fastapi-mail==1.5.0", 
+  "fastapi-mail==1.5.0",
   "fastapi-pagination>=0.12.9", # for API pagination
   "fastapi-limiter==0.1.6", # for rate limiting
   "fastapi-admin>=1.0.4",
@@ -86,12 +77,13 @@ dependencies = [
   "h11==0.16.0", # (HTTP/1.1 protocol, pulled by Uvicorn/FastAPI)
   "httpcore==1.0.9", # (HTTP core client, pulled by httpx)
   "Pillow==10.1.0", # RE-AÑADIDO: Necesario para 'from PIL import Image'
+  "pypdf2>=3.0.0",
+  "pymupdf>=1.25.0",
+  "openpyxl>=3.1.0",
   "pytz>=2024.1",
   "weasyprint==66.0",
   "resend==2.13.1",
-
   "py-spy>=0.4.0", # Para perfilado de rendimiento
-
   # --- Testing ---
   "pytest==8.4.1",
   "pytest-asyncio==0.25.3",
