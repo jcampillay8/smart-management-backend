@@ -150,10 +150,25 @@ class StockService:
                 cantidad_para_historial = cant_mov
 
                 if mov.tipo_movimiento == "conteo":
-                    # La diferencia es lo que realmente "entró" o "salió" para llegar al nuevo valor
-                    diferencia = cant_mov - prod_bodega.stock_actual
-                    prod_bodega.stock_actual = cant_mov
-                    cantidad_para_historial = diferencia 
+                    # Lógica de Conteo Lote-Aware:
+                    # Si el front envía una fecha, comparamos contra el stock de ESE lote específico.
+                    # Si no hay fecha, comparamos contra el stock TOTAL de la bodega (comportamiento original).
+                    if mov.fecha_vencimiento:
+                        stmt_lote = select(func.sum(RegistroStock.cantidad)).where(
+                            RegistroStock.producto_id == mov.producto_id,
+                            RegistroStock.bodega_id == mov.bodega_id,
+                            RegistroStock.fecha_vencimiento == mov.fecha_vencimiento
+                        )
+                        res_lote = await self.db.execute(stmt_lote)
+                        stock_lote_actual = Decimal(str(res_lote.scalar() or "0.0"))
+                        
+                        diferencia = cant_mov - stock_lote_actual
+                        prod_bodega.stock_actual += diferencia
+                        cantidad_para_historial = diferencia
+                    else:
+                        diferencia = cant_mov - prod_bodega.stock_actual
+                        prod_bodega.stock_actual = cant_mov
+                        cantidad_para_historial = diferencia 
 
                 elif mov.tipo_movimiento in ["entrada", "ajuste_positivo"]:
                     prod_bodega.stock_actual += cant_mov
@@ -318,21 +333,21 @@ class StockService:
         producto_id: UUID, 
         bodega_id: UUID, 
         cantidad_total: float, 
-        user_id: int,  # Cambiado de usuario_id a user_id
+        user_id: int,
         receta_id: Optional[UUID] = None
     ):
         """
-        Descuenta stock para la preparación de una receta.
-        Acepta 'cantidad_total' y 'user_id' según los envía el router de operaciones.
+        Descuenta stock para la preparación de una receta siguiendo la lógica FIFO.
+        Prioriza lotes con vencimiento más próximo y excluye productos vencidos.
         """
-        # 1. Buscar y bloquear el stock de la bodega
-        stmt = select(ProductoBodega).where(
+        # 1. Buscar y bloquear el stock consolidado de la bodega
+        stmt_pb = select(ProductoBodega).where(
             ProductoBodega.producto_id == producto_id,
             ProductoBodega.bodega_id == bodega_id
         ).with_for_update()
         
-        result = await self.db.execute(stmt)
-        prod_bodega = result.scalar_one_or_none()
+        result_pb = await self.db.execute(stmt_pb)
+        prod_bodega = result_pb.scalar_one_or_none()
 
         if not prod_bodega:
             raise HTTPException(
@@ -340,19 +355,69 @@ class StockService:
                 detail=f"Producto {producto_id} no configurado en bodega {bodega_id}"
             )
 
-        # 2. Registrar el movimiento en el historial
-        nuevo_registro = RegistroStock(
-            producto_id=producto_id,
-            bodega_id=bodega_id,
-            usuario_id=user_id, # Aquí usamos el valor recibido
-            cantidad=-abs(float(cantidad_total)),
-            tipo_movimiento="consumo",
-            fecha_recuento=date.today(),
-            transfer_id=f"RECETA_ID:{receta_id}" if receta_id else "RECETA_CONSUME"
-        )
-        self.db.add(nuevo_registro)
+        if float(prod_bodega.stock_actual) < cantidad_total:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock total insuficiente para el producto {producto_id}"
+            )
 
-        # 3. Actualizar el stock actual
+        # 2. Identificar lotes disponibles (FIFO: vencimiento más cercano primero, nulos al final)
+        today = date.today()
+        stmt_lots = (
+            select(RegistroStock.fecha_vencimiento, func.sum(RegistroStock.cantidad))
+            .where(
+                RegistroStock.producto_id == producto_id,
+                RegistroStock.bodega_id == bodega_id,
+                # Solo productos no vencidos (o sin fecha)
+                (RegistroStock.fecha_vencimiento >= today) | (RegistroStock.fecha_vencimiento.is_(None))
+            )
+            .group_by(RegistroStock.fecha_vencimiento)
+            .having(func.sum(RegistroStock.cantidad) > 0)
+            .order_by(RegistroStock.fecha_vencimiento.asc().nulls_last())
+        )
+        
+        result_lots = await self.db.execute(stmt_lots)
+        lots = result_lots.all() # Lista de (fecha_vencimiento, stock_del_lote)
+
+        if not lots:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No hay lotes vigentes (no vencidos) para el producto {producto_id}"
+            )
+
+        # 3. Descontar secuencialmente de los lotes
+        quedan_por_descontar = Decimal(str(cantidad_total))
+        
+        for lot_vencimiento, lot_stock in lots:
+            if quedan_por_descontar <= 0:
+                break
+            
+            lot_stock_dec = Decimal(str(lot_stock))
+            a_descontar_de_este_lote = min(lot_stock_dec, quedan_por_descontar)
+            
+            # Registrar movimiento para este lote específico
+            nuevo_registro = RegistroStock(
+                producto_id=producto_id,
+                bodega_id=bodega_id,
+                usuario_id=user_id,
+                cantidad=-abs(float(a_descontar_de_este_lote)),
+                tipo_movimiento="consumo",
+                fecha_recuento=today,
+                fecha_vencimiento=lot_vencimiento,
+                transfer_id=f"RECETA_ID:{receta_id}" if receta_id else "RECETA_CONSUME"
+            )
+            self.db.add(nuevo_registro)
+            
+            quedan_por_descontar -= a_descontar_de_este_lote
+
+        if quedan_por_descontar > 0:
+             # Esto pasaría si el stock total (prod_bodega) es mayor al stock de lotes vigentes
+             raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente en lotes vigentes para {producto_id}. (Verifique productos vencidos)"
+            )
+
+        # 4. Actualizar el stock consolidado
         prod_bodega.stock_actual -= Decimal(str(cantidad_total))
         
         # Mantenemos la transacción abierta para el router principal

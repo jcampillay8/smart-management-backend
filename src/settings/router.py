@@ -60,6 +60,8 @@ async def update_restaurant_config(
 ):
     config = await get_or_create_config(db_session)
     config.nombre = data.nombre
+    config.tipo_negocio = data.tipo_negocio
+    config.dias_alerta_vencimiento = data.dias_alerta_vencimiento
     await db_session.commit()
     await db_session.refresh(config)
     return config

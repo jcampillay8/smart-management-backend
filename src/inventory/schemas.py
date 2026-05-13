@@ -70,6 +70,7 @@ class ProductoBase(BaseModel):
     precio_venta: Optional[float] = Field(default=0.0)
     marca: Optional[str] = Field(default=None, max_length=100)
     proveedor: Optional[str] = Field(default=None, max_length=200)
+    dias_alerta_vencimiento: int = Field(default=15, ge=0)
 
 class ProductoCreate(ProductoBase):
     # Gestion.tsx envía esto cuando guardas un producto nuevo o editado
@@ -79,6 +80,7 @@ class ProductoOut(ProductoBase):
     id: UUID
     bodegas_config: List[ProductoBodegaOut] = []
     categoria: Optional[CategoriaOut] = None
+    proxima_expiracion: Optional[date] = None
     
     model_config = ConfigDict(from_attributes=True)
 

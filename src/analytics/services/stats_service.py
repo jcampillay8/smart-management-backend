@@ -100,6 +100,7 @@ class StatsService:
         stmt = select(
             RegistroStock.producto_id,
             Producto.nombre,
+            Producto.dias_alerta_vencimiento,
             RegistroStock.bodega_id,
             Bodega.nombre.label("bodega_nombre"),
             RegistroStock.fecha_vencimiento,
@@ -110,6 +111,7 @@ class StatsService:
          .group_by(
              RegistroStock.producto_id, 
              Producto.nombre, 
+             Producto.dias_alerta_vencimiento,
              RegistroStock.bodega_id, 
              Bodega.nombre, 
              RegistroStock.fecha_vencimiento
@@ -121,10 +123,12 @@ class StatsService:
         alertas = []
         for lote in lotes:
             dias_restantes = (lote.fecha_vencimiento - hoy).days
+            threshold = lote.dias_alerta_vencimiento or 15
             
-            if lote.fecha_vencimiento <= hoy:
+            # Lógica Chilena: Producto está vencido solo después de la fecha de vencimiento
+            if lote.fecha_vencimiento < hoy:
                 tipo = "critical" # Ya venció
-            elif lote.fecha_vencimiento <= proxima_semana:
+            elif lote.fecha_vencimiento <= hoy + timedelta(days=threshold):
                 tipo = "warning" # Por vencer
             else:
                 continue

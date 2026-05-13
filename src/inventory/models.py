@@ -39,10 +39,11 @@ class Producto(BaseModel):
     factor_conversion: Mapped[float] = mapped_column(Numeric(10, 4), default=1.0, server_default=text("1.0"))
     unidad_conversion: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     imagen_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    precio_venta: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0, server_default=text("0.0"))
+    precio_venta: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), default=0.0, server_default=text("0.0"), nullable=True)
     marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     proveedor: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     sku: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, unique=True)
+    dias_alerta_vencimiento: Mapped[int] = mapped_column(Numeric(5, 0), default=15, server_default=text("15"))
 
     # Relaciones
     categoria: Mapped["Categoria"] = relationship(back_populates="productos")

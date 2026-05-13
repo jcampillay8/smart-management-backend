@@ -58,7 +58,8 @@ class HistoryService:
             .options(
                 joinedload(RegistroStock.producto),
                 joinedload(RegistroStock.bodega),
-                joinedload(RegistroStock.usuario)
+                joinedload(RegistroStock.usuario),
+                joinedload(RegistroStock.receta)
             )
         )
 
@@ -96,9 +97,19 @@ class HistoryService:
         for r in registros:
             r.nombre_producto = r.producto.nombre if r.producto else "—"
             r.nombre_bodega = r.bodega.nombre if r.bodega else "—"
-            # Extraemos el nombre del usuario desde el email si existe
-            if r.usuario and r.usuario.email:
-                r.user_display_name = r.usuario.email.split('@')[0]
+            r.nombre_receta = r.receta.nombre if r.receta else None
+            # Extraemos el nombre del usuario
+            if r.usuario:
+                if getattr(r.usuario, "nombre_visible", None):
+                    r.user_display_name = r.usuario.nombre_visible
+                elif getattr(r.usuario, "first_name", None) or getattr(r.usuario, "last_name", None):
+                    r.user_display_name = f"{r.usuario.first_name} {r.usuario.last_name}".strip()
+                elif getattr(r.usuario, "username", None):
+                    r.user_display_name = r.usuario.username
+                elif getattr(r.usuario, "email", None):
+                    r.user_display_name = r.usuario.email.split('@')[0]
+                else:
+                    r.user_display_name = f"User {r.usuario.id}"
             else:
                 r.user_display_name = "Sistema"
 

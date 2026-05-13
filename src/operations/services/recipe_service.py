@@ -1,14 +1,15 @@
 # src/operations/services/recipe_service.py
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func, case
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from uuid import UUID
 from typing import List, Optional
+from datetime import datetime, timedelta
 
 # Importamos modelos y esquemas
-from src.sales.models import Receta, RecetaIngrediente, CategoriaReceta
-from src.inventory.models import AreaOperativa, AreaOperativaReceta
+from src.sales.models import Receta, RecetaIngrediente, CategoriaReceta, VentaReceta
+from src.inventory.models import AreaOperativa, AreaOperativaReceta, Bodega, ProductoBodega
 from src.operations.schemas import RecetaCreate, CategoriaRecetaCreate
 from src.inventory.services.stock_service import StockService
 
@@ -21,9 +22,10 @@ class RecipeService:
     # SECCIÓN: GESTIÓN DE RECETAS (Para Gestion.tsx)
     # =========================================================================
 
-    async def get_all_recipes(self) -> List[Receta]:
+    async def get_all_recipes(self, area_id: Optional[UUID] = None) -> List[Receta]:
         """
-        Obtiene todas las recetas cargando sus ingredientes y la info del producto.
+        Obtiene todas las recetas cargando sus ingredientes e info de producto.
+        Si se pasa area_id, calcula disponibilidad por bodega y consumo histórico.
         """
         stmt = (
             select(Receta)
@@ -35,9 +37,96 @@ class RecipeService:
         )
         result = await self.db.execute(stmt)
         recipes = result.scalars().all()
-        # Inyectamos los IDs de áreas operativas para el schema RecetaOut
+
+        # 1. Mapear IDs de áreas operativas
         for r in recipes:
             r.areas_operativas_ids = [a.id for a in r.areas_operativas]
+
+        # Si no hay area_id, retornamos básico
+        if not area_id:
+            return recipes
+
+        # 2. Cargar Bodegas del Área Seleccionada
+        area_stmt = (
+            select(AreaOperativa)
+            .options(selectinload(AreaOperativa.bodegas))
+            .where(AreaOperativa.id == area_id)
+        )
+        area_res = await self.db.execute(area_stmt)
+        area = area_res.scalar_one_or_none()
+        
+        if not area:
+            return recipes
+
+        bodegas = area.bodegas
+        bodega_ids = [b.id for b in bodegas]
+
+        # 3. Obtener Stock Actual de todos los productos involucrados en las recetas para estas bodegas
+        # Optimizamos trayendo todo el stock relevante de una vez
+        todos_producto_ids = set()
+        for r in recipes:
+            for ing in r.ingredientes:
+                todos_producto_ids.add(ing.producto_id)
+        
+        stock_stmt = select(ProductoBodega).where(
+            ProductoBodega.producto_id.in_(list(todos_producto_ids)),
+            ProductoBodega.bodega_id.in_(bodega_ids)
+        )
+        stock_res = await self.db.execute(stock_stmt)
+        stocks = stock_res.scalars().all()
+        
+        # Mapeo: (producto_id, bodega_id) -> stock_actual
+        stock_map = {(s.producto_id, s.bodega_id): s.stock_actual for s in stocks}
+
+        # 4. Calcular Consumo Histórico (Global por Receta)
+        now = datetime.utcnow()
+        h24 = now - timedelta(days=1)
+        d7 = now - timedelta(days=7)
+        d30 = now - timedelta(days=30)
+
+        consumo_stmt = select(
+            VentaReceta.receta_id,
+            func.sum(VentaReceta.cantidad).label("total"),
+            func.sum(case((VentaReceta.created_at >= h24, VentaReceta.cantidad), else_=0)).label("dia"),
+            func.sum(case((VentaReceta.created_at >= d7, VentaReceta.cantidad), else_=0)).label("semana"),
+            func.sum(case((VentaReceta.created_at >= d30, VentaReceta.cantidad), else_=0)).label("mes")
+        ).group_by(VentaReceta.receta_id)
+        
+        consumo_res = await self.db.execute(consumo_stmt)
+        consumo_data = {row.receta_id: row for row in consumo_res.all()}
+
+        # 5. Inyectar cálculos en cada receta
+        for r in recipes:
+            # Disponibilidad por bodega
+            disp_list = []
+            for b in bodegas:
+                can_make = float('inf')
+                if not r.ingredientes:
+                    can_make = 0
+                else:
+                    for ing in r.ingredientes:
+                        stock_ing = stock_map.get((ing.producto_id, b.id), 0)
+                        if ing.cantidad > 0:
+                            possible = stock_ing // ing.cantidad
+                            if possible < can_make:
+                                can_make = possible
+                        else:
+                            can_make = 0
+                
+                disp_list.append({
+                    "bodega_id": b.id,
+                    "bodega_nombre": b.nombre,
+                    "cantidad": int(can_make) if can_make != float('inf') else 0
+                })
+            
+            r.disponibilidad_por_bodega = disp_list
+            
+            # Consumo
+            stats = consumo_data.get(r.id)
+            r.consumo_diario = float(stats.dia) if stats else 0
+            r.consumo_semanal = float(stats.semana) if stats else 0
+            r.consumo_mensual = float(stats.mes) if stats else 0
+
         return recipes
 
     async def create_recipe(self, data: RecetaCreate) -> Receta:

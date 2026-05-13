@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 
 from src.database import get_async_session
 from src.dependencies import get_current_user
@@ -18,12 +18,13 @@ router = APIRouter()
 
 @router.get("", response_model=List[RecetaOut])
 async def list_recipes(
+    area_id: Optional[UUID] = Query(None),
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
     """Obtiene la lista de todas las recetas para la tabla de Gestión."""
     service = RecipeService(db)
-    return await service.get_all_recipes()
+    return await service.get_all_recipes(area_id=area_id)
 
 @router.post("", response_model=RecetaOut, status_code=status.HTTP_201_CREATED)
 async def create_new_recipe(

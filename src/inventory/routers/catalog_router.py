@@ -8,6 +8,7 @@ from src.database import get_async_session
 from src.dependencies import get_current_user, require_role
 from src.models import AppRole
 from src.inventory.services.catalog_service import CatalogService
+from src.inventory.services.product_dashboard_service import ProductDashboardService
 from src.inventory.schemas import (
     CategoriaOut, CategoriaCreate, 
     BodegaOut, BodegaCreate, 
@@ -153,3 +154,28 @@ async def get_product_setup(
 ):
     """Obtiene la configuración de productos en bodega(s)."""
     return await CatalogService(db).get_product_setup(bodega_id)
+
+
+# ==========================================
+# DASHBOARD DE PRODUCTO (Analytics)
+# ==========================================
+
+@router.get("/products/{producto_id}/dashboard")
+async def get_product_dashboard(
+    producto_id: UUID,
+    range: str = Query("30D", pattern="^(1D|3D|7D|30D|365D|custom)$"),
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_async_session),
+    _ = Depends(get_current_user),
+):
+    """
+    Retorna métricas y series de tiempo para el dashboard analítico de un producto.
+    Rangos disponibles: 1D, 3D, 7D, 30D, 365D, custom.
+    """
+    from fastapi import HTTPException
+    service = ProductDashboardService(db)
+    result = await service.get_dashboard(producto_id, range_key=range, desde=desde, hasta=hasta)
+    if not result:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return result

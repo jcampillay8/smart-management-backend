@@ -47,6 +47,13 @@ class RecetaOut(RecetaBase):
     ingredientes: List[IngredienteRecetaOut] = []
     areas_operativas_ids: List[UUID] = []
     created_at: Optional[datetime] = None
+    
+    # Campos dinámicos para Gestión
+    disponibilidad_por_bodega: Optional[List[dict]] = None
+    consumo_diario: float = 0
+    consumo_semanal: float = 0
+    consumo_mensual: float = 0
+
     model_config = ConfigDict(from_attributes=True)
 
 # --- EVENTOS ---
@@ -107,8 +114,10 @@ class RegistroStockOut(RegistroStockBase):
     usuario_id: int
     created_at: datetime
     nombre_producto: Optional[str] = None 
+    nombre_receta: Optional[str] = None
     nombre_bodega: Optional[str] = None
     user_display_name: Optional[str] = None
+    receta_consumo_id: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 # --- ESTADÍSTICAS Y OTROS ---

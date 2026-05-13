@@ -50,15 +50,39 @@ class CatalogService:
             stmt = stmt.where(Producto.nombre.ilike(f"%{search}%"))
 
         # 4. Filtro por Bodega
-        # Si se envía bodega_id, filtramos los productos que tengan 
-        # configuración específica en esa bodega.
         if bodega_id:
             stmt = stmt.join(Producto.bodegas_config).where(
                 ProductoBodega.bodega_id == bodega_id
             )
 
+        # 5. Agregar subconsulta para próxima expiración
+        from sqlalchemy import func
+        from src.operations.models import RegistroStock
+        
+        # Calculamos el stock acumulado por lote para asegurarnos de que el lote aún tiene stock
+        # Pero para simplicidad y performance, tomaremos la mínima fecha futura que tenga registros
+        # (Idealmente filtraríamos por stock_actual > 0 pero rs no tiene stock_actual acumulado)
+        subq = (
+            select(func.min(RegistroStock.fecha_vencimiento))
+            .where(RegistroStock.producto_id == Producto.id)
+            .where(RegistroStock.fecha_vencimiento >= func.current_date())
+            .scalar_subquery()
+        )
+        
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        productos = result.scalars().all()
+        
+        # Poblar proxima_expiracion manualmente para evitar problemas con add_columns y scalars
+        for p in productos:
+            p_subq = (
+                select(func.min(RegistroStock.fecha_vencimiento))
+                .where(RegistroStock.producto_id == p.id)
+                .where(RegistroStock.fecha_vencimiento >= func.current_date())
+            )
+            res_expiry = await self.db.execute(p_subq)
+            p.proxima_expiracion = res_expiry.scalar()
+            
+        return productos
 
     async def create_category(self, data: CategoriaCreate) -> Categoria:
         nueva_cat = Categoria(
@@ -182,6 +206,7 @@ class CatalogService:
             await self.db.execute(
                 delete(ProductoBodega).where(ProductoBodega.producto_id == producto_id)
             )
+            await self.db.flush()
             
             # Insertamos las nuevas
             for config in data.bodegas_config:
@@ -207,7 +232,19 @@ class CatalogService:
             .where(Producto.id == producto_id)
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one()
+        p = result.scalar_one()
+        
+        from sqlalchemy import func
+        from src.operations.models import RegistroStock
+        p_subq = (
+            select(func.min(RegistroStock.fecha_vencimiento))
+            .where(RegistroStock.producto_id == p.id)
+            .where(RegistroStock.fecha_vencimiento >= func.current_date())
+        )
+        res_expiry = await self.db.execute(p_subq)
+        p.proxima_expiracion = res_expiry.scalar()
+        
+        return p
 
     async def delete_product(self, producto_id: UUID):
         result = await self.db.execute(select(Producto).where(Producto.id == producto_id))
