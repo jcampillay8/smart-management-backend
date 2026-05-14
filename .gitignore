@@ -44,3 +44,8 @@ notas.md  # Ignora tus notas privadas si no quieres que estén en GitHub
 # Profiling
 profiles/
 flamegraph.svg
+
+# folder
+trash/
+Notas/
+uploads/
