@@ -22,6 +22,15 @@ class TipoMovimiento(str, enum.Enum):
     REVERSION = "reversion"
     REDO = "redo"
 
+class MotivoMerma(str, enum.Enum):
+    VENCIMIENTO = "vencimiento"
+    DANO = "daño"
+    ERROR = "error"
+    CADUCIDAD = "caducidad"
+    EXCESO = "exceso"
+    MAL_ESTADO = "mal estado"
+    OTRO = "otro"
+
 class RegistroStock(BaseModel):
     __tablename__ = "registros_stock"
     __table_args__ = ({'schema': settings.DB_SCHEMA})
@@ -36,7 +45,10 @@ class RegistroStock(BaseModel):
         nullable=False
     )
     
-    motivo_merma: Mapped[Optional[str]] = mapped_column(String(255))
+    motivo_merma: Mapped[Optional[MotivoMerma]] = mapped_column(
+        Enum(MotivoMerma, schema=settings.DB_SCHEMA, name="motivo_merma_enum", values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True
+    )
     descripcion_merma: Mapped[Optional[str]] = mapped_column(String(500))
     
     fecha_recuento: Mapped[date] = mapped_column(Date, server_default=func.current_date())
@@ -60,7 +72,6 @@ class RegistroStock(BaseModel):
     usuario: Mapped["User"] = relationship("src.models.User", foreign_keys=[usuario_id])
     editor: Mapped[Optional["User"]] = relationship("src.models.User", foreign_keys=[modificado_por])
     evento: Mapped[Optional["Evento"]] = relationship("Evento")
-    receta: Mapped[Optional["src.sales.models.Receta"]] = relationship("src.sales.models.Receta")
     
     # NUEVA RELACIÓN: Esto es lo que faltaba para el history_service
     bodega: Mapped["Bodega"] = relationship("src.inventory.models.Bodega")
@@ -148,3 +159,29 @@ class ConteoItem(BaseModel):
 
     conteo: Mapped["ConteoInventario"] = relationship(back_populates="items")
     producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
+
+# --- NUEVO MODELO PARA TRANSFERENCIAS INTER-BODEGAS (Vista 5) ---
+class Transferencia(BaseModel):
+    __tablename__ = "transferencias"
+    __table_args__ = {"schema": settings.DB_SCHEMA}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    producto_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{settings.DB_SCHEMA}.productos.id", ondelete="CASCADE"), nullable=False
+    )
+    bodega_origen_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id", ondelete="CASCADE"), nullable=False
+    )
+    bodega_destino_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{settings.DB_SCHEMA}.bodegas.id", ondelete="CASCADE"), nullable=False
+    )
+    cantidad: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    usuario_id: Mapped[int] = mapped_column(ForeignKey(f"{settings.DB_SCHEMA}.users.id"), nullable=False)
+    motivo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Relaciones
+    producto: Mapped["Producto"] = relationship("src.inventory.models.Producto")
+    bodega_origen: Mapped["Bodega"] = relationship("src.inventory.models.Bodega", foreign_keys=[bodega_origen_id])
+    bodega_destino: Mapped["Bodega"] = relationship("src.inventory.models.Bodega", foreign_keys=[bodega_destino_id])
+    usuario: Mapped["User"] = relationship("src.models.User")

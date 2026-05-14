@@ -1,6 +1,7 @@
 # src/purchases/router.py
 import uuid
-from typing import List
+from typing import List, Optional
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,6 +11,8 @@ from src.dependencies import get_current_user
 from src.models import User
 from src.purchases import models, schemas
 from src.inventory.models import ProductoBodega, Producto
+from src.purchases.services import get_purchase_service, PurchaseService
+from src.purchases.ai_service import scan_invoice_ai
 
 router = APIRouter(prefix="/purchases", tags=["Purchases"])
 
@@ -97,8 +100,6 @@ async def update_purchase(
     await db.commit()
     await db.refresh(db_purchase)
     return db_purchase
-
-from src.purchases.ai_service import scan_invoice_ai
 
 @router.post("/scan-invoice")
 async def scan_invoice(
@@ -217,7 +218,6 @@ async def receive_purchase(
                 
                 # Crear registro de stock para el historial
                 from src.operations.models import RegistroStock, TipoMovimiento
-                from datetime import date
                 registro = RegistroStock(
                     producto_id=item.producto_id,
                     bodega_id=original.bodega_id,
@@ -290,6 +290,34 @@ async def register_incidencia(
     await db.refresh(db_purchase)
     return db_purchase
 
+# Supplier Performance Endpoints
+@router.get("/fill-rate", tags=["Purchases"])
+async def get_fill_rate(
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    service = await get_purchase_service(db)
+    return await service.get_fill_rate_by_proveedor(fecha_inicio, fecha_fin)
+
+@router.get("/price-variation", tags=["Purchases"])
+async def get_price_variation(
+    dias_atras: int = 90,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    service = await get_purchase_service(db)
+    return await service.get_variacion_precios_by_proveedor(dias_atras)
+
+@router.get("/upcoming-payments", tags=["Purchases"])
+async def get_upcoming_payments(
+    dias_adelante: int = 7,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    service = await get_purchase_service(db)
+    return await service.get_calendario_pagos(dias_adelante)
 
 # ======================
 # PROVEEDORES

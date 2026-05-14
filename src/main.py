@@ -54,8 +54,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="EasyManagement",
     description="Sistema de gestión de inventario, recetas y ventas",
-    version="1.0.0",
-    redirect_slashes=False
+    version="1.0.0"
 )
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -110,6 +109,11 @@ async def startup():
         # await FastAPILimiter.init(redis) # 🛑 Saltamos esto temporalmente
     except Exception as e:
         logger.error(f"❌ Error conectando a Redis: {e}")
+
+    import asyncio
+    from src.invoices.services import heartbeat_task
+    asyncio.create_task(heartbeat_task())
+    logger.info("✅ Heartbeat de WebSocket iniciado")
 
 @app.on_event("shutdown")
 async def shutdown_event():

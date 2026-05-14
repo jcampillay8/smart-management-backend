@@ -24,6 +24,8 @@ from src.operations.models import RegistroStock, Evento, EventoProducto, ConteoI
 from src.sales.models import Receta, RecetaIngrediente, VentaReceta, CategoriaReceta
 from src.purchases.models import Compra, CompraItem, Proveedor
 from src.purchases.incidencias_models import NotificacionIncidencia, PlantillaEmail
+from src.invoices.models import Invoice, InvoiceSetting, Notification, WebhookEndpoint
+from src.finance.models import GastoOperativo
 from src.notes.models import Nota, NotaMencion
 from src.ai_management.models import LLMRequestLog
 
@@ -255,4 +257,4 @@ class ConfiguracionRestaurante(BaseModel):
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     logo_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     dias_alerta_vencimiento: Mapped[float] = mapped_column(Numeric(5, 0), default=5.0, server_default=text("5"))
-    tipo_negocio: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    tipo_negocio: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

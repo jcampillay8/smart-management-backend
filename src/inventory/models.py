@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import String, ForeignKey, Numeric, DateTime, func, UniqueConstraint, text, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database import BaseModel
 from src.config import settings
@@ -39,13 +40,13 @@ class Producto(BaseModel):
     factor_conversion: Mapped[float] = mapped_column(Numeric(10, 4), default=1.0, server_default=text("1.0"))
     unidad_conversion: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     imagen_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    precio_venta: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), default=0.0, server_default=text("0.0"), nullable=True)
+    precio_venta: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0, server_default=text("0.0"))
     marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    proveedor: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    proveedor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{settings.DB_SCHEMA}.proveedores.id", ondelete="SET NULL"), nullable=True)
     sku: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, unique=True)
-    dias_alerta_vencimiento: Mapped[int] = mapped_column(Numeric(5, 0), default=15, server_default=text("15"))
 
     # Relaciones
+    proveedor_principal: Mapped[Optional["Proveedor"]] = relationship("Proveedor", back_populates="productos")
     categoria: Mapped["Categoria"] = relationship(back_populates="productos")
     bodegas_config: Mapped[List["ProductoBodega"]] = relationship(back_populates="producto", cascade="all, delete-orphan")
     
