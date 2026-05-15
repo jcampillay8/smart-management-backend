@@ -52,6 +52,7 @@ class ProductoBodegaCreate(ProductoBodegaBase):
 
 class ProductoBodegaOut(ProductoBodegaBase):
     id: UUID
+    producto_id: UUID
     stock_actual: float = 0.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -75,7 +76,7 @@ class ProductoBase(BaseModel):
     imagen_url: Optional[str] = Field(default=None, max_length=1000)
     precio_venta: Optional[float] = Field(default=0.0)
     marca: Optional[str] = Field(default=None, max_length=100)
-    proveedor: Optional[str] = Field(default=None, max_length=200)
+    proveedor_id: Optional[UUID] = None
 
 class ProductoCreate(ProductoBase):
     # Gestion.tsx envía esto cuando guardas un producto nuevo o editado
@@ -87,6 +88,7 @@ class ProductoOut(ProductoBase):
     categoria: Optional[CategoriaOut] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    proveedor: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 

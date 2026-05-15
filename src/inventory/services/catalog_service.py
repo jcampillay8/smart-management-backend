@@ -35,7 +35,8 @@ class CatalogService:
             select(Producto)
             .options(
                 selectinload(Producto.bodegas_config),
-                selectinload(Producto.categoria)
+                selectinload(Producto.categoria),
+                selectinload(Producto.proveedor_principal)
             )
             .order_by(Producto.nombre)
         )
@@ -72,7 +73,6 @@ class CatalogService:
         result = await self.db.execute(stmt)
         productos = result.scalars().all()
         
-        # Poblar proxima_expiracion manualmente para evitar problemas con add_columns y scalars
         for p in productos:
             p_subq = (
                 select(func.min(RegistroStock.fecha_vencimiento))
@@ -81,6 +81,7 @@ class CatalogService:
             )
             res_expiry = await self.db.execute(p_subq)
             p.proxima_expiracion = res_expiry.scalar()
+            p.proveedor = p.proveedor_principal.nombre_empresa if p.proveedor_principal else None
             
         return productos
 
@@ -228,7 +229,7 @@ class CatalogService:
     async def get_product_by_id(self, producto_id: UUID) -> Producto:
         stmt = (
             select(Producto)
-            .options(selectinload(Producto.bodegas_config), selectinload(Producto.categoria))
+            .options(selectinload(Producto.bodegas_config), selectinload(Producto.categoria), selectinload(Producto.proveedor_principal))
             .where(Producto.id == producto_id)
         )
         result = await self.db.execute(stmt)
@@ -243,6 +244,7 @@ class CatalogService:
         )
         res_expiry = await self.db.execute(p_subq)
         p.proxima_expiracion = res_expiry.scalar()
+        p.proveedor = p.proveedor_principal.nombre_empresa if p.proveedor_principal else None
         
         return p
 

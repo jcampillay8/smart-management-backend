@@ -1,6 +1,7 @@
 # src/inventory/services/product_dashboard_service.py
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, cast, Date as SQLDate
+from sqlalchemy.orm import selectinload
 from datetime import date, timedelta
 from uuid import UUID
 from typing import List, Dict, Any
@@ -45,6 +46,7 @@ class ProductDashboardService:
             select(Producto, Categoria.nombre.label("categoria_nombre"))
             .join(Categoria, Categoria.id == Producto.categoria_id)
             .where(Producto.id == producto_id)
+            .options(selectinload(Producto.proveedor_principal))
         )
         prod_res = await self.db.execute(producto_stmt)
         row = prod_res.first()
@@ -128,7 +130,7 @@ class ProductDashboardService:
                 "categoria_nombre": cat_nombre,
                 "imagen_url": prod.imagen_url,
                 "marca": prod.marca,
-                "proveedor": prod.proveedor,
+                "proveedor": prod.proveedor_principal.nombre_empresa if prod.proveedor_principal else None,
             },
             "stock_actual": stock_actual,
             "stock_promedio": stock_promedio,

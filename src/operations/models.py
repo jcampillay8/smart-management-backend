@@ -73,8 +73,8 @@ class RegistroStock(BaseModel):
     editor: Mapped[Optional["User"]] = relationship("src.models.User", foreign_keys=[modificado_por])
     evento: Mapped[Optional["Evento"]] = relationship("Evento")
     
-    # NUEVA RELACIÓN: Esto es lo que faltaba para el history_service
     bodega: Mapped["Bodega"] = relationship("src.inventory.models.Bodega")
+    receta: Mapped[Optional["Receta"]] = relationship("Receta")
 
 class Evento(BaseModel):
     __tablename__ = "eventos"
