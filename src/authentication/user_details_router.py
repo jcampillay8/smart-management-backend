@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 user_details_router = APIRouter(prefix="/user", tags=["User Details"])
 
-@user_details_router.get("/profile/", response_model=UserPublicSchema, response_model_by_alias=True)
+@user_details_router.get("/profile", response_model=UserPublicSchema, response_model_by_alias=True)
 async def read_current_user_profile(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
@@ -30,7 +30,7 @@ class ProfileUpdateSchema(BaseModel):
     occupation: Optional[str] = None
     user_image: Optional[str] = None
 
-@user_details_router.put("/profile/", response_model=UserPublicSchema, response_model_by_alias=True)
+@user_details_router.put("/profile", response_model=UserPublicSchema, response_model_by_alias=True)
 async def update_current_user_profile(
     data: ProfileUpdateSchema,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -49,7 +49,7 @@ async def update_current_user_profile(
     await db_session.commit()
     await db_session.refresh(current_user)
     return current_user
-@user_details_router.post("/accept-terms/", status_code=status.HTTP_200_OK)
+@user_details_router.post("/accept-terms", status_code=status.HTTP_200_OK)
 async def accept_terms(
     current_user: Annotated[User, Depends(get_current_user)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -161,7 +161,7 @@ async def remove_merma_permission(
     await db_session.commit()
     return {"message": "Permiso de merma revocado"}
 
-@user_details_router.get("/admin/all/", response_model=list[UserPublicSchema], response_model_by_alias=True)
+@user_details_router.get("/admin/all", response_model=list[UserPublicSchema], response_model_by_alias=True)
 async def get_all_users(
     current_user: Annotated[User, Depends(require_role([AppRole.ADMIN, AppRole.PROPIETARIO]))],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

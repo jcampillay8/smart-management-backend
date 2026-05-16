@@ -40,7 +40,7 @@ def get_cookie_settings(request: Request):
         "secure": True 
     }
 
-@auth_router.post("/login/", response_model=LoginResponseSchema, response_model_by_alias=True)
+@auth_router.post("/login", response_model=LoginResponseSchema, response_model_by_alias=True)
 async def login(
     response: Response,
     request: Request,
@@ -74,8 +74,8 @@ async def login(
     
     # 4. Configuración de Cookies
     cookie_conf = get_cookie_settings(request)
-    response.set_cookie(key="access_token", value=access_token, httponly=True, **cookie_conf)
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, **cookie_conf)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, path="/", **cookie_conf)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, path="/", **cookie_conf)
 
     # 5. Respuesta limpia usando Pydantic
     # Agregamos manualmente los campos que no están en el modelo User de la DB
@@ -84,7 +84,7 @@ async def login(
 
     return user # Pydantic se encarga del resto
 
-@auth_router.post("/refresh/")
+@auth_router.post("/refresh")
 async def refresh_token(
     request: Request,
     response: Response,
@@ -107,7 +107,7 @@ async def refresh_token(
         # 3. Generar nuevo access token
         new_access_token = create_access_token(user.email)
         cookie_conf = get_cookie_settings(request)
-        response.set_cookie(key="access_token", value=new_access_token, httponly=True, **cookie_conf)
+        response.set_cookie(key="access_token", value=new_access_token, httponly=True, path="/", **cookie_conf)
 
         return {
             "token_expires_at": int((datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()),
@@ -119,7 +119,7 @@ async def refresh_token(
         logger.error(f"Error en refresh token: {e}")
         raise HTTPException(status_code=401, detail="Could not refresh session")
 
-@auth_router.post("/logout/")
+@auth_router.post("/logout")
 async def logout(
     response: Response,
     request: Request,
@@ -136,7 +136,7 @@ async def logout(
     
     return {"message": "Logged out successfully"}
 
-@auth_router.post("/forgot-password/")
+@auth_router.post("/forgot-password")
 async def forgot_password(
     schema: ForgotPasswordSchema,
     background_tasks: BackgroundTasks,
@@ -146,7 +146,7 @@ async def forgot_password(
     background_tasks.add_task(process_forgot_password, db_session, schema.email)
     return {"message": "Si el email existe, recibirás instrucciones pronto."}
 
-@auth_router.post("/reset-password/")
+@auth_router.post("/reset-password")
 async def reset_password(
     schema: ResetPasswordSchema,
     db_session: AsyncSession = Depends(get_async_session),

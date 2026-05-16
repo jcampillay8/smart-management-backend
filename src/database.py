@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = settings.DATABASE_URL or (
     f"postgresql+asyncpg://"
-    f"{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    f"{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}?client_encoding=utf8"
 )
 
 # ---------------------------------------------

@@ -13,7 +13,7 @@ from src.notes.schemas import NotaCreate, NotaUpdate, NotaOut
 notes_router = APIRouter(prefix="/notes", tags=["Notes"])
 
 
-@notes_router.get("/", response_model=List[NotaOut])
+@notes_router.get("", response_model=List[NotaOut])
 async def list_notas(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
@@ -28,7 +28,7 @@ async def list_notas(
     return result.scalars().all()
 
 
-@notes_router.post("/", response_model=NotaOut, status_code=status.HTTP_201_CREATED)
+@notes_router.post("", response_model=NotaOut, status_code=status.HTTP_201_CREATED)
 async def create_nota(
     data: NotaCreate,
     current_user: User = Depends(get_current_user),

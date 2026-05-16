@@ -36,9 +36,9 @@ services:
     container_name: easy-postgres
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-xslyrk}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-_Q1o0w2i9e3u8}
-      POSTGRES_DB: ${DB_NAME:-EasyManagement}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5443:5432"
     healthcheck:
@@ -59,17 +59,17 @@ services:
       - "6380:6379"
     networks:
       - easy-net
-    command: redis-server --requirepass ${REDIS_PASSWORD:-easy_secret_pass}
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-easy_secret_pass}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: easy-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
       - "7071:80"
     networks:

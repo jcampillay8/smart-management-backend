@@ -16,7 +16,7 @@ from src.purchases.ai_service import scan_invoice_ai
 
 router = APIRouter(prefix="/purchases", tags=["Purchases"])
 
-@router.post("/", response_model=schemas.Compra)
+@router.post("", response_model=schemas.Compra)
 async def create_purchase(
     purchase: schemas.CompraCreate,
     db: AsyncSession = Depends(get_async_session),
@@ -58,7 +58,7 @@ async def create_purchase(
     await db.refresh(db_purchase)
     return db_purchase
 
-@router.get("/", response_model=List[schemas.Compra])
+@router.get("", response_model=List[schemas.Compra])
 async def list_purchases(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
@@ -66,6 +66,184 @@ async def list_purchases(
     stmt = select(models.Compra).order_by(models.Compra.fecha.desc())
     result = await db.execute(stmt)
     return result.scalars().all()
+
+# Supplier Performance Endpoints
+@router.get("/fill-rate", tags=["Purchases"])
+async def get_fill_rate(
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    service = await get_purchase_service(db)
+    return await service.get_fill_rate_by_proveedor(fecha_inicio, fecha_fin)
+
+@router.get("/price-variation", tags=["Purchases"])
+async def get_price_variation(
+    dias_atras: int = 90,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    service = await get_purchase_service(db)
+    return await service.get_variacion_precios_by_proveedor(dias_atras)
+
+@router.get("/upcoming-payments", tags=["Purchases"])
+async def get_upcoming_payments(
+    dias_adelante: int = 7,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    service = await get_purchase_service(db)
+    return await service.get_calendario_pagos(dias_adelante)
+
+# ======================
+# PROVEEDORES
+# ======================
+@router.get("/suppliers", response_model=List[schemas.ProveedorOut])
+async def list_proveedores(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Lista todos los proveedores ordenados por nombre de empresa"""
+    stmt = select(models.Proveedor).order_by(models.Proveedor.nombre_empresa)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+@router.post("/suppliers", response_model=schemas.ProveedorOut, status_code=status.HTTP_201_CREATED)
+async def create_proveedor(
+    proveedor: schemas.ProveedorCreate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Crea un nuevo proveedor"""
+    db_proveedor = models.Proveedor(**proveedor.model_dump())
+    db.add(db_proveedor)
+    await db.commit()
+    await db.refresh(db_proveedor)
+    return db_proveedor
+
+
+@router.get("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
+async def get_proveedor(
+    proveedor_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Obtiene un proveedor por su ID"""
+    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
+    result = await db.execute(stmt)
+    db_proveedor = result.scalar_one_or_none()
+    if not db_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    return db_proveedor
+
+
+@router.put("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
+async def update_proveedor(
+    proveedor_id: uuid.UUID,
+    proveedor_update: schemas.ProveedorUpdate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Actualiza un proveedor existente"""
+    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
+    result = await db.execute(stmt)
+    db_proveedor = result.scalar_one_or_none()
+    if not db_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    update_data = proveedor_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_proveedor, key, value)
+    
+    await db.commit()
+    await db.refresh(db_proveedor)
+    return db_proveedor
+
+
+@router.delete("/suppliers/{proveedor_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_proveedor(
+    proveedor_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Elimina un proveedor"""
+    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
+    result = await db.execute(stmt)
+    db_proveedor = result.scalar_one_or_none()
+    if not db_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    await db.delete(db_proveedor)
+    await db.commit()
+    return None
+
+# ======================
+# PLANTILLAS EMAIL
+# ======================
+from src.purchases.incidencias_models import PlantillaEmail
+
+@router.get("/email-templates", response_model=List[schemas.PlantillaEmailOut])
+async def list_plantillas_email(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(PlantillaEmail).order_by(PlantillaEmail.nombre)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+@router.post("/email-templates", response_model=schemas.PlantillaEmailOut, status_code=status.HTTP_201_CREATED)
+async def create_plantilla_email(
+    plantilla: schemas.PlantillaEmailCreate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    db_plantilla = PlantillaEmail(
+        **plantilla.model_dump(),
+        created_by=current_user.id
+    )
+    db.add(db_plantilla)
+    await db.commit()
+    await db.refresh(db_plantilla)
+    return db_plantilla
+
+@router.put("/email-templates/{plantilla_id}", response_model=schemas.PlantillaEmailOut)
+async def update_plantilla_email(
+    plantilla_id: uuid.UUID,
+    plantilla_update: schemas.PlantillaEmailUpdate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(PlantillaEmail).where(PlantillaEmail.id == plantilla_id)
+    result = await db.execute(stmt)
+    db_plantilla = result.scalar_one_or_none()
+    if not db_plantilla:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    
+    update_data = plantilla_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_plantilla, key, value)
+    
+    await db.commit()
+    await db.refresh(db_plantilla)
+    return db_plantilla
+
+@router.delete("/email-templates/{plantilla_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_plantilla_email(
+    plantilla_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    stmt = select(PlantillaEmail).where(PlantillaEmail.id == plantilla_id)
+    result = await db.execute(stmt)
+    db_plantilla = result.scalar_one_or_none()
+    if not db_plantilla:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    
+    await db.delete(db_plantilla)
+    await db.commit()
+    return None
 
 @router.get("/{purchase_id}", response_model=schemas.Compra)
 async def get_purchase(
@@ -289,181 +467,3 @@ async def register_incidencia(
     await db.commit()
     await db.refresh(db_purchase)
     return db_purchase
-
-# Supplier Performance Endpoints
-@router.get("/fill-rate", tags=["Purchases"])
-async def get_fill_rate(
-    fecha_inicio: Optional[date] = None,
-    fecha_fin: Optional[date] = None,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    service = await get_purchase_service(db)
-    return await service.get_fill_rate_by_proveedor(fecha_inicio, fecha_fin)
-
-@router.get("/price-variation", tags=["Purchases"])
-async def get_price_variation(
-    dias_atras: int = 90,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    service = await get_purchase_service(db)
-    return await service.get_variacion_precios_by_proveedor(dias_atras)
-
-@router.get("/upcoming-payments", tags=["Purchases"])
-async def get_upcoming_payments(
-    dias_adelante: int = 7,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    service = await get_purchase_service(db)
-    return await service.get_calendario_pagos(dias_adelante)
-
-# ======================
-# PROVEEDORES
-# ======================
-@router.get("/suppliers/", response_model=List[schemas.ProveedorOut])
-async def list_proveedores(
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Lista todos los proveedores ordenados por nombre de empresa"""
-    stmt = select(models.Proveedor).order_by(models.Proveedor.nombre_empresa)
-    result = await db.execute(stmt)
-    return result.scalars().all()
-
-
-@router.post("/suppliers/", response_model=schemas.ProveedorOut, status_code=status.HTTP_201_CREATED)
-async def create_proveedor(
-    proveedor: schemas.ProveedorCreate,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Crea un nuevo proveedor"""
-    db_proveedor = models.Proveedor(**proveedor.model_dump())
-    db.add(db_proveedor)
-    await db.commit()
-    await db.refresh(db_proveedor)
-    return db_proveedor
-
-
-@router.get("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
-async def get_proveedor(
-    proveedor_id: uuid.UUID,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Obtiene un proveedor por su ID"""
-    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
-    result = await db.execute(stmt)
-    db_proveedor = result.scalar_one_or_none()
-    if not db_proveedor:
-        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
-    return db_proveedor
-
-
-@router.put("/suppliers/{proveedor_id}", response_model=schemas.ProveedorOut)
-async def update_proveedor(
-    proveedor_id: uuid.UUID,
-    proveedor_update: schemas.ProveedorUpdate,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Actualiza un proveedor existente"""
-    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
-    result = await db.execute(stmt)
-    db_proveedor = result.scalar_one_or_none()
-    if not db_proveedor:
-        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
-    
-    update_data = proveedor_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_proveedor, key, value)
-    
-    await db.commit()
-    await db.refresh(db_proveedor)
-    return db_proveedor
-
-
-@router.delete("/suppliers/{proveedor_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_proveedor(
-    proveedor_id: uuid.UUID,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Elimina un proveedor"""
-    stmt = select(models.Proveedor).where(models.Proveedor.id == proveedor_id)
-    result = await db.execute(stmt)
-    db_proveedor = result.scalar_one_or_none()
-    if not db_proveedor:
-        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
-    
-    await db.delete(db_proveedor)
-    await db.commit()
-    return None
-
-# ======================
-# PLANTILLAS EMAIL
-# ======================
-from src.purchases.incidencias_models import PlantillaEmail
-
-@router.get("/email-templates/", response_model=List[schemas.PlantillaEmailOut])
-async def list_plantillas_email(
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    stmt = select(PlantillaEmail).order_by(PlantillaEmail.nombre)
-    result = await db.execute(stmt)
-    return result.scalars().all()
-
-@router.post("/email-templates/", response_model=schemas.PlantillaEmailOut, status_code=status.HTTP_201_CREATED)
-async def create_plantilla_email(
-    plantilla: schemas.PlantillaEmailCreate,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    db_plantilla = PlantillaEmail(
-        **plantilla.model_dump(),
-        created_by=current_user.id
-    )
-    db.add(db_plantilla)
-    await db.commit()
-    await db.refresh(db_plantilla)
-    return db_plantilla
-
-@router.put("/email-templates/{plantilla_id}", response_model=schemas.PlantillaEmailOut)
-async def update_plantilla_email(
-    plantilla_id: uuid.UUID,
-    plantilla_update: schemas.PlantillaEmailUpdate,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    stmt = select(PlantillaEmail).where(PlantillaEmail.id == plantilla_id)
-    result = await db.execute(stmt)
-    db_plantilla = result.scalar_one_or_none()
-    if not db_plantilla:
-        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
-    
-    update_data = plantilla_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_plantilla, key, value)
-    
-    await db.commit()
-    await db.refresh(db_plantilla)
-    return db_plantilla
-
-@router.delete("/email-templates/{plantilla_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_plantilla_email(
-    plantilla_id: uuid.UUID,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    stmt = select(PlantillaEmail).where(PlantillaEmail.id == plantilla_id)
-    result = await db.execute(stmt)
-    db_plantilla = result.scalar_one_or_none()
-    if not db_plantilla:
-        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
-    
-    await db.delete(db_plantilla)
-    await db.commit()
-    return None
